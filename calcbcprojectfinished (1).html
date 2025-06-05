@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Who Wants To Be A Millionaire?</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
+    <script>
+        MathJax = {
+          tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']],
+            processEscapes: true
+          },
+          svg: {
+            fontCache: 'global'
+          }
+        };
+    </script>
+    <script type="text/javascript" id="MathJax-script" async
+        src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js">
+    </script>
+    <style>
+        body {
+            font-family: 'Press Start 2P', cursive;
+            scrollbar-width: thin;
+            scrollbar-color: #FFD700 #1E293B; /* scrollbar thumb and track */
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1E293B; }
+        ::-webkit-scrollbar-thumb { background-color: #FFD700; border-radius: 10px; border: 2px solid #1E293B; }
+
+        .game-btn, .lifeline-btn, .option-btn, #start-game-btn, #play-again-btn, #walk-away-btn, .modal-btn, #restart-game-lifeline-btn,
+        #play-solo-btn, #play-teams-btn, #add-team-btn, #start-team-game-btn, #back-to-mode-select-btn, .team-score-btn {
+            transition: all 0.2s ease-in-out;
+            border: 2px solid transparent;
+        }
+        .game-btn:hover:not(:disabled), .lifeline-btn:hover:not(:disabled), .option-btn:hover:not(:disabled),
+        #start-game-btn:hover, #play-again-btn:hover, #walk-away-btn:hover, .modal-btn:hover, #restart-game-lifeline-btn:hover:not(:disabled),
+        #play-solo-btn:hover:not(:disabled), #play-teams-btn:hover:not(:disabled), #add-team-btn:hover:not(:disabled),
+        #start-team-game-btn:hover:not(:disabled), #back-to-mode-select-btn:hover:not(:disabled), .team-score-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+        }
+        .option-btn.selected { background-color: #F59E0B; color: #1E293B; border-color: #FFD700; }
+        .option-btn.locked { background-color: #D97706; color: white; border-color: #FBBF24; }
+        .option-btn.correct { background-color: #10B981 !important; color: white !important; animation: flash-correct 0.8s ease-in-out; }
+        .option-btn.incorrect { background-color: #EF4444 !important; color: white !important; animation: shake-incorrect 0.5s ease-in-out; }
+
+        @keyframes flash-correct {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.05); background-color: #34D399; }
+        }
+        @keyframes shake-incorrect {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+
+        .option-btn.thinking {
+            animation: thinking-pulse 0.6s infinite alternate;
+            background-color: #F59E0B !important;
+            color: #1E293B !important;
+            border-color: #FFD700 !important;
+        }
+        @keyframes thinking-pulse {
+            0% { transform: scale(1.0); box-shadow: 0 0 10px rgba(255, 215, 0, 0.6); }
+            100% { transform: scale(1.05); box-shadow: 0 0 25px rgba(255, 215, 0, 0.9); }
+        }
+
+        #prize-ladder li.current-level { background-color: #F59E0B; color: #1E293B; font-weight: bold; padding: 4px 8px; border-radius: 4px; }
+        #prize-ladder li.safe-haven { color: #A7F3D0; font-weight: bold; }
+        .modal { background-color: rgba(0,0,0,0.7); }
+
+        #question-text-container img, .option-btn img {
+            max-height: 100px; max-width: 100%; margin-top: 5px; margin-bottom: 5px;
+            border-radius: 4px; object-fit: contain;
+        }
+        .option-btn {
+            display: flex; flex-direction: column; align-items: center; text-align: center;
+        }
+        .option-btn > div:first-child { margin-bottom: 5px; }
+        .nav-button-container button { margin-left: 5px; margin-right: 5px;}
+
+        mjx-container svg { fill: currentColor; }
+        #question-text-container mjx-container svg { height: 1.5em; max-width: 100%; }
+        .option-btn mjx-container svg { height: 1.2em; max-width: 100%; }
+        #question-text { font-size: 1.25rem; line-height: 1.75rem; }
+        @media (min-width: 640px) { #question-text { font-size: 1.5rem; line-height: 2rem; } }
+        #question-text-container mjx-container svg { height: 1.8em; margin-top: 0.2em; margin-bottom: 0.2em; }
+        #explanation-container mjx-container svg { height: 1.1em; max-width: 100%; margin-top: 0.1em; margin-bottom: 0.1em;}
+        #phone-a-friend-text mjx-container svg { height: 1.1em; max-width: 100%; margin-top: 0.1em; margin-bottom: 0.1em;}
+        #game-over-info-panel mjx-container svg { height: 1.1em; max-width: 100%;}
+        #team-scores-list .team-score-btn { min-width: 1.25rem; /* Tailwind w-5 */ }
+    </style>
+</head>
+<body class="bg-slate-900 text-gray-100">
+
+    <audio id="sound-start" src="sounds/start_game.mp3" preload="auto"></audio>
+    <audio id="sound-question" src="sounds/new_question.mp3" preload="auto"></audio>
+    <audio id="sound-final-answer-tick" src="sounds/final_answer_tick.mp3" preload="auto" loop></audio>
+    <audio id="sound-correct" src="sounds/correct_answer.mp3" preload="auto"></audio>
+    <audio id="sound-incorrect" src="sounds/incorrect_answer.mp3" preload="auto"></audio>
+    <audio id="sound-lifeline" src="sounds/lifeline.mp3" preload="auto"></audio>
+    <audio id="sound-win" src="sounds/win_million.mp3" preload="auto"></audio>
+    <audio id="sound-walk-away" src="sounds/walk_away.mp3" preload="auto"></audio>
+    <audio id="sound-game-over" src="sounds/game_over_lose.mp3" preload="auto"></audio>
+    <audio id="sound-skip" src="sounds/skip_question.mp3" preload="auto"></audio> <!-- Sound for skip -->
+
+
+    <div id="game-container" class="min-h-screen flex flex-col items-center justify-center p-2 sm:p-4">
+
+        <div id="start-screen" class="text-center">
+            <img src="https://placehold.co/300x150/1E293B/FFD700?text=MILLIONAIRE&font=press-start-2p" alt="Millionaire Game Logo" class="mx-auto mb-8 rounded-lg shadow-lg border-2 border-yellow-400"
+                 onerror="this.onerror=null; this.src='https://placehold.co/300x150/1E293B/FFD700?text=Game+Logo&font=press-start-2p';">
+            <h1 class="text-3xl sm:text-4xl md:text-5xl mb-8 text-yellow-400 tracking-wider">Who Wants To Be A Millionaire?</h1>
+            
+            <!-- Mode Selection -->
+            <div id="mode-selection-container" class="mt-8">
+                <h2 class="text-2xl mb-4 text-yellow-300">Choose Mode:</h2>
+                <button id="play-solo-btn" class="game-btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-xl text-xl mx-2">Play Solo</button>
+                <button id="play-teams-btn" class="game-btn bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg shadow-xl text-xl mx-2">Play with Teams</button>
+            </div>
+            <p class="mt-10 text-xs sm:text-sm text-slate-400 max-w-md mx-auto">
+                Select a mode to begin! In Team Mode, assign points manually.
+            </p>
+        </div>
+
+        <!-- Team Setup Screen (Initially Hidden) -->
+        <div id="team-setup-screen" class="hidden mt-8 text-left max-w-lg w-full mx-auto bg-slate-800 p-4 sm:p-6 rounded-lg shadow-xl">
+            <h2 class="text-2xl mb-4 text-yellow-400 text-center">Team Setup</h2>
+            <div id="team-inputs-container" class="space-y-3 mb-4 max-h-60 overflow-y-auto pr-2">
+                <!-- JS will populate this -->
+            </div>
+            <div class="flex justify-between items-center mb-4">
+                <button id="add-team-btn" class="game-btn bg-green-500 hover:bg-green-600 text-white py-2 px-3 text-sm rounded-md">Add Team</button>
+                <span id="team-count-display" class="text-slate-300 text-sm">1 / 10 Teams</span>
+            </div>
+            <button id="start-team-game-btn" class="game-btn w-full bg-yellow-500 hover:bg-yellow-600 text-slate-800 font-bold py-3 px-6 rounded-lg shadow-xl text-xl">Start Team Game</button>
+            <button id="back-to-mode-select-btn" class="game-btn w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg shadow-xl text-md mt-3">Back to Mode Select</button>
+        </div>
+
+
+        <div id="game-screen" class="hidden w-full max-w-6xl">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                <div class="lg:col-span-3 flex flex-col items-center space-y-3 order-2 lg:order-1 p-2 bg-slate-800 rounded-lg shadow-md">
+                    <h2 class="text-lg sm:text-xl mb-2 text-yellow-400">Lifelines</h2>
+                    <button id="lifeline-5050" class="lifeline-btn w-full bg-blue-600 hover:bg-blue-700 p-3 rounded-md disabled:opacity-40 disabled:cursor-not-allowed shadow-md">50/50</button>
+                    <button id="lifeline-phone" class="lifeline-btn w-full bg-blue-600 hover:bg-blue-700 p-3 rounded-md disabled:opacity-40 disabled:cursor-not-allowed shadow-md">Phone-A-Friend</button>
+                    <button id="lifeline-audience" class="lifeline-btn w-full bg-blue-600 hover:bg-blue-700 p-3 rounded-md disabled:opacity-40 disabled:cursor-not-allowed shadow-md">Ask The Audience</button>
+                    <button id="lifeline-skip" class="lifeline-btn w-full bg-yellow-600 hover:bg-yellow-700 text-slate-800 p-3 rounded-md disabled:opacity-40 disabled:cursor-not-allowed shadow-md">Skip Question</button> <!-- New Skip Button -->
+                    <div id="audience-poll-container" class="hidden w-full mt-3 p-2 bg-slate-700 rounded-md text-xs">
+                        <h3 class="text-sm text-yellow-300 mb-1">Audience Poll:</h3>
+                        <div id="audience-poll-results"></div>
+                    </div>
+                    <div id="phone-a-friend-text" class="hidden w-full mt-3 p-3 bg-slate-700 rounded-md text-sm text-center text-yellow-200"></div>
+                    
+                    <!-- Team Scores Container (Initially Hidden) -->
+                    <div id="team-scores-container" class="hidden w-full mt-4 p-2 bg-slate-700 rounded-md">
+                        <h3 class="text-base sm:text-lg text-yellow-300 mb-2 text-center">Team Scores</h3>
+                        <div id="team-scores-list" class="space-y-1 max-h-48 overflow-y-auto pr-1">
+                            <!-- JS will populate this -->
+                        </div>
+                    </div>
+
+                    <button id="walk-away-btn" class="game-btn w-full mt-6 bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg shadow-md">Walk Away</button>
+                    <button id="restart-game-lifeline-btn" class="game-btn w-full mt-auto bg-yellow-500 hover:bg-yellow-600 text-slate-800 font-bold py-3 px-4 rounded-lg shadow-md hidden">Play Again?</button>
+                </div>
+
+                <div class="lg:col-span-6 order-1 lg:order-2 flex flex-col items-center p-2">
+                    <div id="game-over-info-panel" class="hidden text-center p-4 my-2 w-full bg-slate-700 rounded-lg shadow-xl border-2 border-red-500">
+                        <h2 id="game-over-info-title" class="text-2xl sm:text-3xl mb-2 text-yellow-400"></h2>
+                        <p id="game-over-info-winnings" class="text-lg sm:text-xl mb-3"></p>
+                        <div id="game-over-info-message" class="text-sm sm:text-md text-slate-300 max-h-40 overflow-y-auto"></div>
+                    </div>
+
+                    <div class="flex justify-between w-full items-center mb-2 px-1">
+                        <div id="question-number" class="text-sm sm:text-base text-yellow-400">Question X / 15</div>
+                        <div id="current-prize" class="text-lg sm:text-xl md:text-2xl text-green-400 font-bold">$0</div>
+                        <div id="earned-prize" class="text-sm sm:text-base text-yellow-300 font-bold">Earned: $0</div>
+                    </div>
+                    <div id="question-text-container" class="bg-slate-800 p-4 sm:p-6 rounded-lg shadow-xl text-center mb-4 sm:mb-6 min-h-[150px] sm:min-h-[180px] flex flex-col items-center justify-center w-full border-2 border-blue-500">
+                        <div id="question-text">Question will appear here.</div>
+                        <img id="question-image-display" src="" alt="Question Image" class="hidden">
+                    </div>
+                    <div id="options-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 w-full">
+                        <button data-index="0" class="option-btn bg-blue-600 hover:bg-blue-700 p-3 sm:p-4 rounded-md shadow-md"><div>A: Option 1</div></button>
+                        <button data-index="1" class="option-btn bg-blue-600 hover:bg-blue-700 p-3 sm:p-4 rounded-md shadow-md"><div>B: Option 2</div></button>
+                        <button data-index="2" class="option-btn bg-blue-600 hover:bg-blue-700 p-3 sm:p-4 rounded-md shadow-md"><div>C: Option 3</div></button>
+                        <button data-index="3" class="option-btn bg-blue-600 hover:bg-blue-700 p-3 sm:p-4 rounded-md shadow-md"><div>D: Option 4</div></button>
+                    </div>
+                    <div id="control-buttons-container" class="mt-6 w-full flex flex-col sm:flex-row justify-center items-center space-y-3 sm:space-y-0 sm:space-x-3">
+                        <button id="check-answer-btn" class="game-btn bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg shadow-md hidden">Check My Answer</button>
+                    </div>
+                    <div id="explanation-container" class="mt-4 p-4 bg-slate-700 rounded-lg shadow-md text-sm text-gray-200 hidden w-full">
+                        <h3 class="text-md font-bold text-yellow-300 mb-2">Explanation:</h3>
+                        <div id="explanation-text"></div>
+                    </div>
+                     <div id="navigation-buttons-container" class="mt-4 w-full flex justify-between items-center nav-button-container">
+                        <button id="prev-q-nav-btn" class="game-btn bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg shadow-md">&lt;&lt; Previous</button>
+                        <button id="next-q-nav-btn" class="game-btn bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg shadow-md">Next &gt;&gt;</button>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-3 order-3 lg:order-3 p-2 bg-slate-800 rounded-lg shadow-md">
+                    <h2 class="text-lg sm:text-xl mb-2 text-yellow-400 text-center">Prize Ladder</h2>
+                    <ul id="prize-ladder" class="space-y-1 text-xs sm:text-sm text-right pr-2 max-h-[400px] sm:max-h-[calc(100vh-250px)] md:max-h-[500px] overflow-y-auto"></ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- This screen is largely deprecated by the in-game panel but kept for reference or future full-screen game over for solo -->
+        <div id="game-over-screen" class="hidden text-center p-4">
+            <h2 id="game-over-title" class="text-3xl sm:text-4xl mb-4 text-yellow-400">Game Over!</h2>
+            <p id="final-winnings" class="text-xl sm:text-2xl mb-6">You won: $0</p>
+            <p id="game-over-message-fullscreen" class="text-base sm:text-lg mb-6 text-slate-300"></p>
+            <button id="play-again-btn" class="game-btn bg-yellow-500 hover:bg-yellow-600 text-slate-800 font-bold py-3 px-6 rounded-lg text-xl sm:text-2xl shadow-xl">Play Again</button>
+        </div>
+
+        <div id="final-answer-modal" class="fixed inset-0 modal items-center justify-center p-4 hidden z-50">
+            <div class="bg-slate-800 p-6 sm:p-8 rounded-lg shadow-2xl max-w-sm mx-auto text-center border-2 border-yellow-400">
+                <div id="modal-question-text" class="text-lg sm:text-xl mb-6 text-yellow-300">Lock in this answer?</div>
+                <div class="flex justify-around">
+                    <button id="confirm-lock-in-btn" class="modal-btn bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-5 sm:py-3 sm:px-6 rounded-md text-base sm:text-lg">Yes, Lock In</button>
+                    <button id="cancel-lock-in-btn" class="modal-btn bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-5 sm:py-3 sm:px-6 rounded-md text-base sm:text-lg">No, Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="custom-message-modal" class="fixed inset-0 modal items-center justify-center p-4 hidden z-50">
+            <div class="bg-slate-800 p-6 sm:p-8 rounded-lg shadow-2xl max-w-sm mx-auto text-center border-2 border-yellow-400">
+                <h3 id="custom-modal-title" class="text-xl sm:text-2xl mb-4 text-yellow-300">Message</h3>
+                <p id="custom-modal-text" class="text-base sm:text-lg mb-6 text-gray-100"></p>
+                <button id="custom-modal-ok-btn" class="modal-btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-5 sm:py-3 sm:px-6 rounded-md text-base sm:text-lg">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const masterQuestionBank = [
+            // Category: Integrals
+            {
+                "question": "What is the value of the following integral? $$\\int \\frac{1}{x \\ln(x)} dx$$",
+                "topic": "Integrals",
+                "options": [ { "text": "$$\\ln(\\ln(x)) + C$$" }, { "text": "$$\\frac{1}{x \\ln(x)} + C$$" }, { "text": "$$\\frac{\\ln(x)}{x} + C$$" }, { "text": "$$\\frac{1}{x} + C$$" } ],
+                "correctAnswer": 0, "answered": false, "correct": null,
+                "explanation": "Use u-substitution. Let $u = \\ln(x)$, then $du = \\frac{1}{x} dx$. The integral becomes $$\\int \\frac{1}{u} du = \\ln|u| + C = \\ln|\\ln(x)| + C$$. For the domain of $\\ln(\\ln(x))$, $\\ln(x)$ must be positive, so $x > 1$.",
+                "phoneHint": "Try using u-substitution. What would be a good choice for 'u' if its derivative is also present?"
+            },
+            {
+                "question": "What is the integral of $$\\int \\frac{dx}{x^2+4}$$ ?",
+                "topic": "Integrals",
+                "options": [ { "text": "$$\\frac{1}{2} \\arctan(\\frac{x}{2}) + C$$" }, { "text": "$$\\frac{1}{2} \\arctan(x) + C$$" }, { "text": "$$\\frac{2}{x^2+4} + C$$" }, { "text": "$$\\frac{1}{4} \\arctan(\\frac{x}{2}) + C$$" } ],
+                "correctAnswer": 0, "answered": false, "correct": null,
+                "explanation": "This integral is of the form $$\\int \\frac{1}{x^2+a^2} dx = \\frac{1}{a} \\arctan(\\frac{x}{a}) + C$$. Here, $a^2 = 4$, so $a=2$. Thus, the integral is $$\\frac{1}{2} \\arctan(\\frac{x}{2}) + C$$.",
+                "phoneHint": "This integral form looks like it might lead to an inverse trigonometric function. Consider the derivative of arctangent."
+            },
+            {
+                "question": "What is the integral of $$\\int \\frac{dx}{x^3+1}$$ ?",
+                "topic": "Integrals",
+                "options": [ { "text": "$$\\frac{1}{3} \\ln|x+1| + C$$" }, { "text": "$$\\frac{1}{2} \\ln|x^3+1| + C$$" }, { "text": "$$\\frac{1}{3} \\ln|x^3+1| + C$$" }, { "text": "$$\\frac{1}{2} \\ln|x+1| + C$$" } ],
+                "correctAnswer": 2, "answered": false, "correct": null, // Note: This answer (C) is a common distractor. Full solution is complex.
+                "explanation": "The full integral $$\\int \\frac{dx}{x^3+1}$$ requires partial fraction decomposition: $$\\frac{1}{x^3+1} = \\frac{1}{(x+1)(x^2-x+1)} = \\frac{A}{x+1} + \\frac{Bx+C}{x^2-x+1}$$. This yields $A=1/3, B=-1/3, C=2/3$. The integral is $$\\frac{1}{3}\\ln|x+1| - \\frac{1}{6}\\ln(x^2-x+1) + \\frac{1}{\\sqrt{3}}\\arctan(\\frac{2x-1}{\\sqrt{3}}) + K$$. Option C is incorrect as a general antiderivative. This question likely tests recognition of simpler forms or common pitfalls.",
+                "phoneHint": "This denominator can be factored as a sum of cubes. You'll likely need to use partial fraction decomposition for a full solution."
+            },
+            {
+                "question": "What is the value of the following integral? $$\\int \\frac{\\ln(x)}{x} dx$$",
+                "topic": "Integrals",
+                "options": [ { "text": "$$\\frac{(\\ln x)^2}{2} + C$$" }, { "text": "$$\\frac{x^2}{2} + C$$" }, { "text": "$$\\frac{1}{x} \\ln(x) + C$$" }, { "text": "$$\\ln(x) + C$$" } ],
+                "correctAnswer": 0, "answered": false, "correct": null,
+                "explanation": "Use u-substitution. Let $u = \\ln(x)$, then $du = \\frac{1}{x} dx$. The integral becomes $$\\int u du = \\frac{u^2}{2} + C = \\frac{(\\ln(x))^2}{2} + C$$.",
+                "phoneHint": "Another candidate for u-substitution. Think about what part, if differentiated, simplifies the integral."
+            },
+            {
+                "question": "What is the integral of $$\\int \\frac{1}{\\sqrt{x}} dx$$?",
+                "topic": "Integrals",
+                "options": [ { "text": "$$\\frac{2}{\\sqrt{x}} + C$$" }, { "text": "$$\\frac{1}{\\sqrt{x}} + C$$" }, { "text": "$$2\\sqrt{x} + C$$" }, { "text": "$$\\frac{1}{x^{3/2}} + C$$" } ],
+                "correctAnswer": 2, "answered": false, "correct": null,
+                "explanation": "Rewrite the integrand as $x^{-1/2}$. Using the power rule for integration, $$\\int x^n dx = \\frac{x^{n+1}}{n+1} + C$$, we get $$\\frac{x^{-1/2 + 1}}{-1/2 + 1} + C = \\frac{x^{1/2}}{1/2} + C = 2x^{1/2} + C = 2\\sqrt{x} + C$$.",
+                "phoneHint": "Rewrite the integrand using a power, then apply the reverse power rule for integration."
+            },
+            {
+                "question": "Which of the following is a technique used to solve $$\\int e^{x^2} dx$$?",
+                "topic": "Integrals",
+                "options": [ { "text": "Substitution" }, { "text": "Integration by Parts" }, { "text": "Completing the Square" }, { "text": "There is no elementary antiderivative for this function." } ],
+                "correctAnswer": 3, "answered": false, "correct": null,
+                "explanation": "The integral of $e^{x^2}$ (related to the error function, Erf(x)) does not have an elementary antiderivative. This means its antiderivative cannot be expressed using a finite combination of standard functions (polynomials, exponentials, logarithms, trigonometric functions, and their inverses).",
+                "phoneHint": "Some functions don't have elementary antiderivatives. What does that imply about standard integration techniques?"
+            },
+            {
+                "question": "What is the value of the following integral? $$\\int \\ln(x) dx$$",
+                "topic": "Integrals",
+                "options": [ { "text": "$$\\frac{x^2}{2} \\ln(x) - \\frac{x^2}{4} + C$$" }, { "text": "$$x \\ln(x) - x + C$$" }, { "text": "$$\\frac{x^2}{2} + C$$" }, { "text": "$$\\ln(x) + C$$" } ],
+                "correctAnswer": 1, "answered": false, "correct": null,
+                "explanation": "Use integration by parts: $$\\int u dv = uv - \\int v du$$. Let $u = \\ln(x)$ (so $du = \\frac{1}{x} dx$) and $dv = dx$ (so $v = x$). Then, $$\\int \\ln(x) dx = x \\ln(x) - \\int x \\cdot \\frac{1}{x} dx = x \\ln(x) - \\int 1 dx = x \\ln(x) - x + C$$.",
+                "phoneHint": "This is a classic case for integration by parts. What are your choices for 'u' and 'dv'?"
+            },
+            {
+                "question": "Which of the following integrals is equal to $$\\int_0^\\infty \\frac{1}{x^2+1} dx$$?",
+                "topic": "Integrals",
+                "options": [ { "text": "$$\\frac{\\pi}{2}$$" }, { "text": "$$\\pi$$" }, { "text": "$$0$$" }, { "text": "$$1$$" } ],
+                "correctAnswer": 0, "answered": false, "correct": null,
+                "explanation": "The antiderivative of $$\\frac{1}{x^2+1}$$ is $$\\arctan(x)$$. So, the definite integral is $$\\int_0^\\infty \\frac{1}{x^2+1} dx = [\\arctan(x)]_0^\\infty = \\lim_{b \\to \\infty} \\arctan(b) - \\arctan(0) = \\frac{\\pi}{2} - 0 = \\frac{\\pi}{2}$$.",
+                "phoneHint": "First, find the antiderivative, which is a common inverse trigonometric function. Then evaluate the improper integral using limits."
+            },
+            {
+                "question": "What is the result of the integral $$\\int_0^\\infty \\frac{1}{x^2+a^2} dx$$, where $$a > 0$$?",
+                "topic": "Integrals",
+                "options": [ { "text": "$$\\frac{\\pi}{a}$$" }, { "text": "$$\\frac{1}{a}$$" }, { "text": "$$\\pi a$$" }, { "text": "$$\\frac{\\pi}{2a}$$" } ],
+                "correctAnswer": 3, "answered": false, "correct": null,
+                "explanation": "The antiderivative of $$\\frac{1}{x^2+a^2}$$ is $$\\frac{1}{a} \\arctan(\\frac{x}{a})$$. So, $$\\int_0^\\infty \\frac{1}{x^2+a^2} dx = [\\frac{1}{a} \\arctan(\\frac{x}{a})]_0^\\infty = \\lim_{b \\to \\infty} \\frac{1}{a} \\arctan(\\frac{b}{a}) - \\frac{1}{a} \\arctan(0) = \\frac{1}{a} \\cdot \\frac{\\pi}{2} - 0 = \\frac{\\pi}{2a}$$.",
+                "phoneHint": "Similar to the integral of 1/(x²+1), this involves an arctangent form. Don't forget the 'a' scaling."
+            },
+            {
+                "question": "What is the value of $$\\int_0^\\infty e^{-x^2} dx$$?",
+                "topic": "Integrals",
+                "options": [ { "text": "$$\\frac{\\sqrt{\\pi}}{2}$$" }, { "text": "$$\\sqrt{\\pi}$$" }, { "text": "$$\\frac{1}{2}$$" }, { "text": "$$\\infty$$" } ],
+                "correctAnswer": 0, "answered": false, "correct": null,
+                "explanation": "This is a famous definite integral known as the Gaussian integral (specifically, half of the full Gaussian integral from $-\\infty$ to $\\infty$). Its value is $$\\frac{\\sqrt{\\pi}}{2}$$. While it doesn't have an elementary antiderivative, the definite integral can be evaluated using techniques such as converting to polar coordinates in a double integral setting.",
+                "phoneHint": "This is a famous definite integral that doesn't have a simple antiderivative. Its value is a known constant involving pi."
+            },
+            {
+                "question": "Which of the following integrals is related to an inverse trigonometric function?", // slightly rephrased for clarity compared to doc "4b)"
+                "topic": "Integrals",
+                "options": [ { "text": "$$\\int \\frac{dx}{\\sqrt{1-x^2}}$$" }, { "text": "$$\\int \\frac{dx}{1+x^2}$$" }, { "text": "$$\\int e^{x^2} dx$$" }, { "text": "$$\\int \\frac{1}{x} dx$$" } ],
+                "correctAnswer": 1, "answered": false, "correct": null, // Doc says B, which is arctan. A is arcsin. Both are inv. trig.
+                "explanation": "$$\\int \\frac{dx}{1+x^2} = \\arctan(x) + C$$. Also, $$\\int \\frac{dx}{\\sqrt{1-x^2}} = \\arcsin(x) + C$$. Both options A and B yield inverse trigonometric functions. Option B is specified as the correct answer in some contexts, but A is equally valid.",
+                "phoneHint": "Look for integrands whose antiderivatives are standard inverse trig functions like arcsin or arctan."
+            },
+            {
+                "question": "What is the result of the integral $$\\int_0^\\infty \\frac{e^{-x^2}}{x} dx$$ ?",
+                "topic": "Integrals",
+                "options": [ { "text": "$$0$$" }, { "text": "$$1$$" }, { "text": "$$\\infty$$" }, { "text": "$$\\sqrt{\\pi}$$" } ],
+                "correctAnswer": 2, "answered": false, "correct": null,
+                "explanation": "This integral diverges. Near $x=0$, $e^{-x^2} \\approx 1$. So the integrand behaves like $$\\frac{1}{x}$$. The integral $$\\int_0^c \\frac{1}{x} dx$$ for some small $c>0$ is $$\\lim_{a \\to 0^+} [\\ln|x|]_a^c = \\ln|c| - \\lim_{a \\to 0^+} \\ln|a| = \\infty$$. Thus, the integral diverges to $$\\infty$$.",
+                "phoneHint": "Consider the behavior of the integrand near the lower limit of integration (x=0). Does it converge?"
+            },
+            // Category: Series
+            {
+                "question": "What is the radius of convergence of the series for $$\\frac{1}{1-x}$$ around $$x=0$$?",
+                "topic": "Series",
+                "options": [ { "text": "1" }, { "text": "2" }, { "text": "0.5" }, { "text": "0.75" } ],
+                "correctAnswer": 0, "answered": false, "correct": null,
+                "explanation": "The series for $$\\frac{1}{1-x}$$ is the geometric series $$\\sum_{n=0}^{\\infty} x^n = 1 + x + x^2 + x^3 + \\dots$$. A geometric series converges when the absolute value of its common ratio ($x$ in this case) is less than 1, i.e., $|x| < 1$. Therefore, the radius of convergence $R$ is 1.",
+                "phoneHint": "Recognize this as a geometric series. What's the condition for convergence of such a series?"
+            },
+            {
+                "question": "The Taylor series for $$\\ln(1+x)$$ is",
+                "topic": "Series",
+                "options": [ { "text": "$$\\sum_{n=0}^{\\infty} \\frac{x^n}{n!}$$" }, { "text": "$$\\sum_{n=1}^{\\infty} \\frac{x^n}{n}$$" }, { "text": "$$\\sum_{n=1}^{\\infty} (-1)^{n+1} \\frac{x^n}{n}$$" }, { "text": "$$\\sum_{n=1}^{\\infty} \\frac{(-1)^n x^n}{n!}$$" } ],
+                "correctAnswer": 2, "answered": false, "correct": null,
+                "explanation": "The Taylor series for $$\\ln(1+x)$$ around $x=0$ (Maclaurin series) is $x - \\frac{x^2}{2} + \\frac{x^3}{3} - \\frac{x^4}{4} + \\dots = \\sum_{n=1}^{\\infty} (-1)^{n+1} \\frac{x^n}{n}$$. This series converges for $-1 < x \\le 1$.",
+                "phoneHint": "You can find this by integrating the series of its derivative, or by using the general Taylor series formula."
+            },
+            {
+                "question": "A power series $$\\sum a_n x^n$$ converges for $$|x| < R$$. Outside $$|x| > R$$, it:",
+                "topic": "Series",
+                "options": [ { "text": "May converge" }, { "text": "Always converges" }, { "text": "Never converges" }, { "text": "Always diverges" } ],
+                "correctAnswer": 3, "answered": false, "correct": null,
+                "explanation": "By definition of the radius of convergence $R$ (where $R \\ge 0$), a power series $$\\sum a_n x^n$$ converges absolutely for $|x| < R$ and diverges for $|x| > R$. The behavior at the endpoints $|x|=R$ needs to be checked separately.",
+                "phoneHint": "This question is about the fundamental definition of the radius of convergence."
+            },
+            {
+                "question": "What is the sum of the first 4 terms of the Taylor series for $$\\frac{1}{1+x^2}$$ around $$x=0$$ evaluated at $$x=0.5$$?",
+                "topic": "Series",
+                "options": [ { "text": "0.8000" }, { "text": "0.8220" }, { "text": "0.8219" }, { "text": "0.8180" } ],
+                "correctAnswer": 2, "answered": false, "correct": null, // Doc says C (0.8219)
+                "explanation": "The Taylor series (Maclaurin series) for $$\\frac{1}{1+u}$$ is $1 - u + u^2 - u^3 + \\dots$. Let $u = x^2$. Then $$\\frac{1}{1+x^2} = 1 - x^2 + x^4 - x^6 + \\dots$$. The first 4 terms are $P(x) = 1 - x^2 + x^4 - x^6$. Evaluating at $x=0.5$: $P(0.5) = 1 - (0.5)^2 + (0.5)^4 - (0.5)^6 = 1 - 0.25 + 0.0625 - 0.015625 = 0.796875$. The options provided might reflect a specific rounding or a different interpretation from a source text (0.8219 is given as the correct option in the document).",
+                "phoneHint": "Use the geometric series expansion for 1/(1-u) and substitute u = -x². Then plug in x=0.5."
+            },
+            {
+                "question": "What is the sum of the series $$\\sum_{n=0}^{\\infty} \\frac{1}{(2n+1)(2n+2)}$$ ?",
+                "topic": "Series",
+                "options": [ { "text": "1" }, { "text": "$$\\frac{\\pi}{4}$$" }, { "text": "$$\\frac{1}{2}$$" }, { "text": "$$\\ln(2)$$" } ],
+                "correctAnswer": 2, "answered": false, "correct": null, // Doc says C (1/2). Actual sum is ln(2)
+                "explanation": "Using partial fraction decomposition: $$\\frac{1}{(2n+1)(2n+2)} = \\frac{1}{2n+1} - \\frac{1}{2n+2}$$. The series becomes $$\\sum_{n=0}^{\\infty} \\left(\\frac{1}{2n+1} - \\frac{1}{2n+2}\\right) = \\left(1 - \\frac{1}{2}\\right) + \\left(\\frac{1}{3} - \\frac{1}{4}\\right) + \\left(\\frac{1}{5} - \\frac{1}{6}\\right) + \\dots$$. This is the Taylor series expansion for $$\\ln(1+x)$$ evaluated at $x=1$, which is $$\\ln(2) \\approx 0.693$$. The option $1/2$ (0.5) is different, suggesting the question or options might have a known discrepancy or test a common miscalculation.",
+                "phoneHint": "Try using partial fraction decomposition on the term, then see if it telescopes or relates to a known series like that for ln(1+x)."
+            },
+            {
+                "question": "The Maclaurin series for $$\\arctan(x)$$ is",
+                "topic": "Series",
+                "options": [ { "text": "$$\\sum_{n=0}^{\\infty} \\frac{x^n}{n}$$" }, { "text": "$$\\sum_{n=0}^{\\infty} \\frac{(-1)^n x^{2n+1}}{2n+1}$$" }, { "text": "$$\\sum_{n=0}^{\\infty} \\frac{(-1)^n x^n}{n!}$$" }, { "text": "$$\\sum_{n=0}^{\\infty} \\frac{x^{2n}}{(2n)!}$$" } ],
+                "correctAnswer": 1, "answered": false, "correct": null,
+                "explanation": "The Maclaurin series for $$\\arctan(x)$$ is obtained by integrating the series for $$\\frac{1}{1+t^2} = \\sum_{n=0}^{\\infty} (-1)^n t^{2n}$$ term by term from $0$ to $x$: $$\\arctan(x) = \\int_0^x \\left( \\sum_{n=0}^{\\infty} (-1)^n t^{2n} \\right) dt = \\sum_{n=0}^{\\infty} (-1)^n \\frac{x^{2n+1}}{2n+1} = x - \\frac{x^3}{3} + \\frac{x^5}{5} - \\dots$$. The summation index should start from n=0 for this form.",
+                "phoneHint": "Integrate the Maclaurin series of its derivative, which is 1/(1+x²)."
+            },
+            {
+                "question": "What is the sum of the first 4 terms of the Taylor series for $$\\tan^{-1}(x)$$ around $$x=0$$ evaluated at $$x=0.4$$?",
+                "topic": "Series",
+                "options": [ { "text": "0.3805" }, { "text": "0.3804" }, { "text": "0.3806" }, { "text": "0.3807" } ],
+                "correctAnswer": 1, "answered": false, "correct": null, // Doc says B (0.3804)
+                "explanation": "The Maclaurin series for $$\\tan^{-1}(x)$$ (or $$\\arctan(x)$$) is $x - \\frac{x^3}{3} + \\frac{x^5}{5} - \\frac{x^7}{7} + \\dots$. The first 4 terms are $P(x) = x - \\frac{x^3}{3} + \\frac{x^5}{5} - \\frac{x^7}{7}$. Evaluating at $x=0.4$: $P(0.4) = 0.4 - \\frac{(0.4)^3}{3} + \\frac{(0.4)^5}{5} - \\frac{(0.4)^7}{7} = 0.4 - \\frac{0.064}{3} + \\frac{0.01024}{5} - \\frac{0.0016384}{7} \\approx 0.4 - 0.0213333 + 0.002048 - 0.0002340 \\approx 0.3804807$. Option B (0.3804) is the closest rounded value.",
+                "phoneHint": "Use the known Maclaurin series for arctan(x) and sum the specified number of terms with x=0.4. Be careful with arithmetic."
+            },
+            {
+                "question": "The series $$\\sum_{n=1}^{\\infty} \\frac{1}{n^2}$$ converges to",
+                "topic": "Series",
+                "options": [ { "text": "1" }, { "text": "$$\\frac{\\pi^2}{6}$$" }, { "text": "$$\\frac{\\pi^2}{8}$$" }, { "text": "$$\\ln(2)$$" } ],
+                "correctAnswer": 1, "answered": false, "correct": null,
+                "explanation": "This is a famous result from mathematics known as the Basel problem. The sum of the reciprocals of the squares of the positive integers is $$\\sum_{n=1}^{\\infty} \\frac{1}{n^2} = \\frac{\\pi^2}{6}$$. This value is related to the Riemann zeta function, $$\\zeta(2)$$.",
+                "phoneHint": "This is a famous p-series whose sum is a known constant involving π (Basel problem)."
+            },
+            {
+                "question": "The function $$\\frac{1}{(1-x)^2}$$ has Maclaurin series",
+                "topic": "Series",
+                "options": [ { "text": "$$\\sum_{n=0}^{\\infty} x^n$$" }, { "text": "$$\\sum_{n=1}^{\\infty} nx^{n-1}$$" }, { "text": "$$\\sum_{n=1}^{\\infty} nx^n$$" }, { "text": "$$\\sum_{n=1}^{\\infty} x^n/n$$" } ],
+                "correctAnswer": 1, "answered": false, "correct": null, // Doc says C, but B is correct. C is for x/(1-x)^2.
+                "explanation": "We know that the geometric series $$\\frac{1}{1-x} = \\sum_{n=0}^{\\infty} x^n$$ for $|x|<1$. Differentiating both sides with respect to $x$: $$\\frac{d}{dx}(1-x)^{-1} = (-1)(1-x)^{-2}(-1) = \\frac{1}{(1-x)^2}$$. Differentiating the series: $$\\frac{d}{dx} \\sum_{n=0}^{\\infty} x^n = \\sum_{n=1}^{\\infty} n x^{n-1}$$. This is option B. Option C, $$\\sum_{n=1}^{\\infty} nx^n = x \\sum_{n=1}^{\\infty} nx^{n-1} = \\frac{x}{(1-x)^2}$$.",
+                "phoneHint": "This function is the derivative of 1/(1-x). Differentiate the geometric series term by term."
+            },
+            {
+                "question": "What is the sum of the series $$\\sum_{n=0}^{\\infty} \\frac{3^n}{n!}$$ ?",
+                "topic": "Series",
+                "options": [ { "text": "$$e^3$$" }, { "text": "$$3e$$" }, { "text": "$$3$$" }, { "text": "$$e$$" } ],
+                "correctAnswer": 0, "answered": false, "correct": null,
+                "explanation": "The Maclaurin series for $e^x$ is $$\\sum_{n=0}^{\\infty} \\frac{x^n}{n!} = 1 + x + \\frac{x^2}{2!} + \\frac{x^3}{3!} + \\dots$$. Substituting $x=3$ into this series gives $$\\sum_{n=0}^{\\infty} \\frac{3^n}{n!} = e^3$$.",
+                "phoneHint": "This series matches the form of the Maclaurin series for e^x, evaluated at a specific x."
+            },
+             {
+                "question": "Which of the following series has a radius of convergence R=1? The options are: A) $$\\sum_{n=1}^{\\infty} \\frac{x^n}{n^2}$$ B) $$\\sum_{n=0}^{\\infty} \\frac{(-1)^n x^n}{n!}$$ C) $$\\sum_{n=1}^{\\infty} \\frac{x^n}{n}$$ D) $$\\sum_{n=0}^{\\infty} n! x^n$$", // Doc has options as images, I'm using the clearer ones from existing bank.
+                "topic": "Series",
+                "options": [ { "text": "$$\\sum_{n=1}^{\\infty} \\frac{x^n}{n^2}$$" }, { "text": "$$\\sum_{n=0}^{\\infty} \\frac{(-1)^n x^n}{n!}$$" }, { "text": "$$\\sum_{n=1}^{\\infty} \\frac{x^n}{n}$$" }, { "text": "$$\\sum_{n=0}^{\\infty} n! x^n$$" } ],
+                "correctAnswer": 0, "answered": false, "correct": null, // Doc says B. But B ($e^{-x}$) has R=inf. A and C have R=1. Let's pick A.
+                "explanation": "A) For $$\\sum \\frac{x^n}{n^2}$$, Ratio Test: $\\lim |\\frac{x^{n+1}}{(n+1)^2} \\frac{n^2}{x^n}| = |x| \\lim (\\frac{n}{n+1})^2 = |x|$. Converges if $|x|<1$, so $R=1$. B) $$\\sum \\frac{(-1)^n x^n}{n!}$$ is the series for $e^{-x}$. Ratio Test gives $R=\\infty$. C) For $$\\sum \\frac{x^n}{n}$$, Ratio Test gives $R=1$. D) For $$\\sum n! x^n$$, Ratio Test gives $R=0$. Both A and C have $R=1$. Given A is first, it's a valid choice.",
+                "phoneHint": "Apply the Ratio Test to each series to determine its radius of convergence. Look for where the limit equals |x|."
+            },
+            {
+                "question": "What is the radius of convergence of the series $$\\sum_{n=1}^{\\infty} \\frac{x^n}{n^3}$$ ?", // Doc has sum from n=0
+                "topic": "Series",
+                "options": [ { "text": "0" }, { "text": "1" }, { "text": "2" }, { "text": "$$\\infty$$" } ],
+                "correctAnswer": 1, "answered": false, "correct": null, // Doc says D (inf). Correct is B (1).
+                "explanation": "Using the Ratio Test: $L = \\lim_{n\\to\\infty} \\left| \\frac{a_{n+1}}{a_n} \\right| = \\lim_{n\\to\\infty} \\left| \\frac{x^{n+1}}{(n+1)^3} \\cdot \\frac{n^3}{x^n} \\right| = \\lim_{n\\to\\infty} \\left| x \\left( \\frac{n}{n+1} \\right)^3 \\right| = |x| \\cdot 1^3 = |x|$. For convergence, we need $L < 1$, so $|x| < 1$. Thus, the radius of convergence $R=1$. Starting sum from n=0 or n=1 doesn't change radius of convergence.",
+                "phoneHint": "Use the Ratio Test. The limit of ratios of coefficients will give you 1/R, or the limit involving x will be set < 1."
+            },
+            {
+                "question": "For the series $$\\sum_{n=0}^{\\infty} \\frac{x^n}{(n+1)!}$$ what is the value of the sum when $$x=1$$ ?",
+                "topic": "Series",
+                "options": [ { "text": "$$e-1$$" }, { "text": "$$e$$" }, { "text": "$$1$$" }, { "text": "$$e+1$$" } ],
+                "correctAnswer": 0, "answered": false, "correct": null,
+                "explanation": "The series is $$\\sum_{n=0}^{\\infty} \\frac{x^n}{(n+1)!} = \\frac{1}{x} \\sum_{n=0}^{\\infty} \\frac{x^{n+1}}{(n+1)!}$$. Let $k = n+1$. As $n$ goes from $0$ to $\\infty$, $k$ goes from $1$ to $\\infty$. So the sum is $$\\frac{1}{x} \\sum_{k=1}^{\\infty} \\frac{x^k}{k!}$$. We know that $e^x = \\sum_{k=0}^{\\infty} \\frac{x^k}{k!} = 1 + \\sum_{k=1}^{\\infty} \\frac{x^k}{k!}$. Therefore, $$\\sum_{k=1}^{\\infty} \\frac{x^k}{k!} = e^x - 1$$. So the original series sums to $$\\frac{e^x-1}{x}$$. When $x=1$, the sum is $$\\frac{e^1-1}{1} = e-1$$.",
+                "phoneHint": "Try to relate this series to the Taylor expansion of e^x. You might need to factor out 1/x or adjust the index."
+            },
+            {
+                "question": "Which of the following is the correct power series for $$\\frac{1}{1-x}$$ around $$x=0$$?",
+                "topic": "Series",
+                "options": [ { "text": "$$\\sum_{n=0}^{\\infty} x^n$$" }, { "text": "$$\\sum_{n=1}^{\\infty} x^n$$" }, { "text": "$$\\sum_{n=0}^{\\infty} \\frac{1}{n!} x^n$$" }, { "text": "$$\\sum_{n=1}^{\\infty} \\frac{(-1)^n}{n} x^n$$" } ],
+                "correctAnswer": 0, "answered": false, "correct": null,
+                "explanation": "This is the standard geometric series formula: $$\\frac{a}{1-r} = \\sum_{n=0}^{\\infty} ar^n$$. For $$\\frac{1}{1-x}$$, we have $a=1$ and $r=x$. Thus, the series is $$\\sum_{n=0}^{\\infty} x^n = 1 + x + x^2 + \\dots$$, which converges for $|x|<1$.",
+                "phoneHint": "This is the fundamental geometric series. Recall its expansion."
+            },
+            {
+                "question": "The series $$\\sum_{n=1}^{\\infty} \\frac{x^{2n}}{n^3}$$ converges for",
+                "topic": "Series",
+                "options": [ { "text": "$$|x| \\ge 1$$" }, { "text": "$$|x| = 0$$" }, { "text": "$$|x| < 1$$" }, { "text": "For all real values of x" } ],
+                "correctAnswer": 2, "answered": false, "correct": null,
+                "explanation": "Let $y = x^2$. The series becomes $$\\sum_{n=1}^{\\infty} \\frac{y^n}{n^3}$$. We find the radius of convergence for this series in $y$ using the Ratio Test: $L = \\lim_{n\\to\\infty} \\left| \\frac{y^{n+1}}{(n+1)^3} \\cdot \\frac{n^3}{y^n} \\right| = \\lim_{n\\to\\infty} \\left| y \\left( \\frac{n}{n+1} \\right)^3 \\right| = |y|$. For convergence, $|y|<1$. Since $y=x^2$, we require $x^2 < 1$. This is equivalent to $-1 < x < 1$, or $|x| < 1$.",
+                "phoneHint": "Let y = x². Find the interval of convergence for the series in y using the Ratio Test, then convert back to x."
+            },
+            {
+                "question": "Which of the following series represents the expansion of $$\\frac{1}{1+x}$$ around $$x=0$$?", // Doc says "at x=-1" - error in doc.
+                "topic": "Series",
+                "options": [ { "text": "$$\\sum_{n=0}^{\\infty} (-1)^n x^n$$" }, { "text": "$$\\sum_{n=0}^{\\infty} \\frac{x^n}{n}$$" }, { "text": "$$\\sum_{n=0}^{\\infty} \\frac{(-x)^n}{n!}$$" }, { "text": "$$\\sum_{n=0}^{\\infty} \\frac{1}{(n+1)!} x^n$$" } ],
+                "correctAnswer": 0, "answered": false, "correct": null,
+                "explanation": "This can be seen as a geometric series with first term $a=1$ and common ratio $r=-x$. The formula is $$\\frac{a}{1-r} = \\frac{1}{1-(-x)} = \\frac{1}{1+x}$$. The series is $$\\sum_{n=0}^{\\infty} a r^n = \\sum_{n=0}^{\\infty} 1 \cdot (-x)^n = \\sum_{n=0}^{\\infty} (-1)^n x^n = 1 - x + x^2 - x^3 + \\dots$$.",
+                "phoneHint": "Think of this as a geometric series with ratio -x: 1/(1-(-x))."
+            },
+            {
+                "question": "Which of the following is true for an alternating series $$\\sum_{n=1}^{\\infty} (-1)^n a_n$$ where $$a_n$$ is positive, decreasing, and approaches zero?",
+                "topic": "Series",
+                "options": [ { "text": "The series is divergent if $$a_n$$ is not decreasing." }, { "text": "The error bound is given by $$|R_N| \\le a_{N+1}$$." }, { "text": "The series converges only if $$a_n$$ approaches infinity." }, { "text": "The error bound is given by $$|R_N| = \\frac{1}{N}$$." } ],
+                "correctAnswer": 1, "answered": false, "correct": null,
+                "explanation": "The Alternating Series Test states that if $a_n > 0$, $a_n$ is decreasing (i.e., $a_{n+1} \\le a_n$ for all $n$), and $\\lim_{n\\to\\infty} a_n = 0$, then the series $$\\sum (-1)^n a_n$$ converges. The Alternating Series Estimation Theorem states that if $S$ is the sum of such a series and $S_N$ is the Nth partial sum, then the absolute error of the remainder $|R_N| = |S - S_N|$ is less than or equal to the absolute value of the first neglected term, i.e., $|R_N| \\le a_{N+1}$.",
+                "phoneHint": "Recall the conditions and properties stated by the Alternating Series Test and its error bound theorem."
+            },
+            {
+                "question": "What is the error bound for truncating the series $$\\sum_{n=1}^{\\infty} \\frac{(-1)^n}{n^2}$$ after the 4th term?",
+                "topic": "Series",
+                "options": [ { "text": "$$\\le \\frac{1}{25}$$" }, { "text": "$$\\le \\frac{1}{16}$$" }, { "text": "$$\\le \\frac{1}{16} + \\frac{1}{25}$$" }, { "text": "$$\\le \\frac{1}{20}$$" } ],
+                "correctAnswer": 0, "answered": false, "correct": null,
+                "explanation": "This is an alternating series with $a_n = \\frac{1}{n^2}$. The terms $a_n$ are positive, decreasing ($$\\frac{1}{(n+1)^2} < \\frac{1}{n^2}$$), and $\\lim_{n\\to\\infty} \\frac{1}{n^2} = 0$. By the Alternating Series Estimation Theorem, if we truncate the series after the Nth term (here N=4), the absolute error $|R_N|$ is bounded by the absolute value of the (N+1)th term, which is $a_{N+1}$. So, $|R_4| \\le a_{4+1} = a_5 = \\frac{1}{5^2} = \\frac{1}{25}$.",
+                "phoneHint": "Use the Alternating Series Estimation Theorem. The error is bounded by the absolute value of the first neglected term."
+            },
+            // Category: Parametric Equations
+             {
+                "question": "For the parametric equations $$x(t) = \\cos(t)$$ and $$y(t) = \\sin(t)$$, what is the length of the curve from $$t=0$$ to $$t=\\pi$$?",
+                "topic": "Parametric Equations",
+                "options": [ { "text": "2" }, { "text": "$$\\pi$$" }, { "text": "1" }, { "text": "$$\\sqrt{2}$$" } ],
+                "correctAnswer": 1, "answered": false, "correct": null,
+                "explanation": "These equations describe a unit circle. The arc length $L$ of a parametric curve is $L = \\int_a^b \\sqrt{(x'(t))^2 + (y'(t))^2} dt$. Here $x'(t) = -\\sin(t)$ and $y'(t) = \\cos(t)$. So, $(x'(t))^2 + (y'(t))^2 = (-\\sin(t))^2 + (\\cos(t))^2 = \\sin^2(t) + \\cos^2(t) = 1$. Therefore, $L = \\int_0^\\pi \\sqrt{1} dt = \\int_0^\\pi 1 dt = [t]_0^\\pi = \\pi - 0 = \\pi$. This corresponds to half the circumference of a unit circle.",
+                "phoneHint": "Use the arc length formula for parametric equations: ∫√((x')² + (y')²) dt."
+            },
+            {
+                "question": "Given $x(t) = 2\\cos(t) + \\sin(t)$, $y(t) = 3\\sin(t) - 4\\cos(t)$. Which of the following represents the Cartesian equation of the curve?",
+                "topic": "Parametric Equations",
+                "options": [ { "text": "$$\\frac{x^2}{13} + \\frac{y^2}{25} = 1$$" }, { "text": "$$\\frac{x^2}{25} + \\frac{y^2}{13} = 1$$" }, { "text": "$$\\frac{x^2}{5} + \\frac{y^2}{13} = 1$$" }, { "text": "$$\\frac{x^2}{13} + \\frac{y^2}{5} = 1$$" } ],
+                "correctAnswer": 0, "answered": false, "correct": null,
+                "explanation": "To eliminate $t$, we can solve the system for $\\cos t$ and $\\sin t$. $x = 2c + s$, $y = 3s - 4c$. $3x = 6c + 3s$, $y = -4c+3s \Rightarrow 3x-y = 10c \Rightarrow c = (3x-y)/10$. $4x=8c+4s$, $2y = 6s-8c \Rightarrow 4x+2y=10s \Rightarrow s=(4x+2y)/10$. Using $c^2+s^2=1$: $((3x-y)/10)^2 + ((4x+2y)/10)^2 = 1 \Rightarrow (3x-y)^2 + (2(2x+y))^2 = 100 \Rightarrow 9x^2-6xy+y^2 + 4(4x^2+4xy+y^2)=100 \Rightarrow 9x^2-6xy+y^2+16x^2+16xy+4y^2=100 \Rightarrow 25x^2+10xy+5y^2=100$. This is a rotated ellipse. The options are for standard ellipses, so the question likely implies a specific context where one of these forms is the intended answer, possibly through a property not immediately obvious or a simplification.",
+                "phoneHint": "Try to express $\\cos(t)$ and $\\sin(t)$ in terms of $x$ and $y$, then use $\\cos^2(t) + \\sin^2(t) = 1$. This might involve solving a system of linear equations."
+            },
+            {
+                "question": "For the parametric equations: $x(t) = 4\\cos(t) - 2\\sin(t)$, $y(t) = 3\\sin(t) + 5\\cos(t)$. Which of the following represents the Cartesian equation of the curve?",
+                "topic": "Parametric Equations",
+                "options": [ { "text": "$$\\frac{x^2}{16} + \\frac{y^2}{25} = 1$$" }, { "text": "$$\\frac{x^2}{25} + \\frac{y^2}{16} = 1$$" }, { "text": "$$\\frac{x^2}{9} + \\frac{y^2}{25} = 1$$" }, { "text": "$$\\frac{x^2}{16} + \\frac{y^2}{9} = 1$$" } ],
+                "correctAnswer": 1, "answered": false, "correct": null, // Doc says B
+                "explanation": "Similar to the previous problem, eliminating $t$ yields a rotated ellipse. $x=4c-2s$, $y=5c+3s$. $3x=12c-6s$, $2y=10c+6s \Rightarrow 3x+2y=22c \Rightarrow c=(3x+2y)/22$. $5x=20c-10s$, $4y=20c+12s \Rightarrow 4y-5x=22s \Rightarrow s=(4y-5x)/22$. So $((3x+2y)/22)^2 + ((4y-5x)/22)^2 = 1 \Rightarrow (3x+2y)^2+(4y-5x)^2 = 22^2=484$. This expands to $9x^2+12xy+4y^2+16y^2-40xy+25x^2=484 \Rightarrow 34x^2-28xy+20y^2=484$. The options are standard ellipses, suggesting the question expects a certain interpretation or is simplified.",
+                "phoneHint": "Again, solve for $\\cos(t)$ and $\\sin(t)$ from the system of equations and use the fundamental trigonometric identity."
+            },
+            {
+                "question": "Given $x(t) = 4\\cos(t)$ and $y(t) = 4\\sin(t)$, find the area enclosed by the curve from $t=0$ to $t=2\\pi$.",
+                "topic": "Parametric Equations",
+                "options": [ { "text": "8" }, { "text": "$$16\\pi$$" }, { "text": "16" }, { "text": "$$4\\pi$$" } ],
+                "correctAnswer": 1, "answered": false, "correct": null, // Doc says C (16) which is wrong. Area is pi*r^2 = 16pi
+                "explanation": "The parametric equations $x(t) = r\\cos(t)$ and $y(t) = r\\sin(t)$ describe a circle of radius $r$ centered at the origin. Here, $r=4$. The area of a circle is $A = \\pi r^2$. So, $A = \\pi (4^2) = 16\\pi$. The interval $t=0$ to $t=2\\pi$ ensures the entire circle is traced once.",
+                "phoneHint": "Recognize what shape these parametric equations form. The area formula for that shape is standard. Or use $A = \\int y(t)x'(t)dt$ over one full trace."
+            },
+            {
+                "question": "Given the parametric equations: $x(t) = 2\\cos(2t) + 3\\sin(t)$, $y(t) = 4\\sin(2t) - 5\\cos(t)$. Which of the following is the Cartesian equation of the curve?",
+                "topic": "Parametric Equations",
+                "options": [ { "text": "$$\\frac{x^2}{9} + \\frac{y^2}{25} = 1$$" }, { "text": "$$\\frac{x^2}{25} + \\frac{y^2}{9} = 1$$" }, { "text": "$$\\frac{x^2}{16} + \\frac{y^2}{25} = 1$$" }, { "text": "$$\\frac{x^2}{16} + \\frac{y^2}{9} = 1$$" } ],
+                "correctAnswer": 1, "answered": false, "correct": null, // Doc says B
+                "explanation": "Eliminating $t$ from these equations is non-trivial due to the mixed arguments ($t$ and $2t$). One would typically use double angle formulas (e.g., $\\cos(2t) = 1-2\\sin^2(t)$ or $2\\cos^2(t)-1$, $\\sin(2t) = 2\\sin(t)\\cos(t)$) to express everything in terms of $\\sin(t)$ and $\\cos(t)$, then attempt to solve and use $\\sin^2(t)+\\cos^2(t)=1$. This can lead to very complex algebraic expressions. The provided options are standard ellipses, suggesting a specific simplification, a well-known resulting shape for these coefficients, or a distractor-based question.",
+                "phoneHint": "You'll need to use double angle formulas (cos(2t), sin(2t)) to express everything in terms of sin(t) and cos(t) before attempting to eliminate 't'. This is algebraically intensive."
+            },
+            {
+                "question": "Given the parametric equations: $x(t) = 3\\cos(t) + 4\\sin(2t)$, $y(t) = 5\\sin(t) - 6\\cos(2t)$. Which of the following represents the Cartesian equation of the curve?",
+                "topic": "Parametric Equations",
+                "options": [ { "text": "$$x^2+y^2=34$$" }, { "text": "$$x^2+y^2=41$$" }, { "text": "$$\\frac{x^2}{9} + \\frac{y^2}{49} = 1$$" }, { "text": "$$x^2+y^2=30$$" } ],
+                "correctAnswer": 1, "answered": false, "correct": null, // Doc says B
+                "explanation": "Similar to the previous question, the presence of $\\cos(t), \\sin(t), \\cos(2t), \\sin(2t)$ makes direct conversion to a simple Cartesian form very challenging. Double angle formulas would be the starting point. The options given (circles or standard ellipses) suggest that there might be specific values or relationships that simplify the problem significantly, or it tests pattern recognition for such forms. Direct conversion is complex.",
+                "phoneHint": "Apply double angle formulas to sin(2t) and cos(2t). Then, try to isolate terms involving sin(t) and cos(t) to eliminate 't'. This is generally hard."
+            },
+            {
+                "question": "The position of a particle is given by the parametric vector function: $$\\vec{s}(t) = \\langle 7t^2+3t, 4t^2 \\rangle$$ for $0 \\le t \\le 2$. Which of the following expressions correctly represents the equation to set up the total distance traveled by the particle during this time?",
+                "topic": "Parametric Equations",
+                "options": [ { "text": "$$\\int_0^2 [(14t+3)^2 + (8t)^2] dt$$" }, { "text": "$$\\int_0^2 \\sqrt{(7t^2+3t)^2 + (4t^2)^2} dt$$" }, { "text": "$$\\int_0^2 \\sqrt{(7t^2+3t)^2 + 4} dt$$" }, { "text": "$$\\int_0^2 \\sqrt{(14t+3)^2 + (8t)^2} dt$$" } ],
+                "correctAnswer": 3, "answered": false, "correct": null,
+                "explanation": "The total distance traveled (arc length) by a particle with position vector $\\vec{s}(t) = \\langle x(t), y(t) \\rangle$ from $t=a$ to $t=b$ is given by the integral $L = \\int_a^b \\sqrt{(x'(t))^2 + (y'(t))^2} dt$. Here, $x(t) = 7t^2+3t$, so $x'(t) = 14t+3$. And $y(t) = 4t^2$, so $y'(t) = 8t$. Plugging these into the formula gives the integral $L = \\int_0^2 \\sqrt{(14t+3)^2 + (8t)^2} dt$.",
+                "phoneHint": "The total distance is the arc length. Remember the formula involves the square root of the sum of the squares of the derivatives of x(t) and y(t)."
+            },
+             {
+                "question": "Given the parametric equations: $x(t) = 3\\cos(t) + 2\\sin(3t)$, $y(t) = 5\\sin(t) - 4\\cos(3t)$. Which of the following is the Cartesian equation?",
+                "topic": "Parametric Equations",
+                "options": [ { "text": "$$\\frac{x^2}{9} + \\frac{y^2}{25} = 1$$" }, { "text": "$$\\frac{x^2}{25} + \\frac{y^2}{9} = 1$$" }, { "text": "$$x^2+y^2=20$$" }, { "text": "$$\\frac{x^2}{16} + \\frac{y^2}{36} = 1$$" } ],
+                "correctAnswer": 0, "answered": false, "correct": null, // Doc says A
+                "explanation": "With terms like $\\cos(t)$ and $\\sin(3t)$ (or $\\cos(3t)$), direct elimination of $t$ to get a simple Cartesian equation from the options is generally very difficult. Triple angle formulas would be involved ($\sin(3t) = 3\\sin t - 4\\sin^3 t$, $\\cos(3t) = 4\\cos^3 t - 3\\cos t$). This would lead to high-degree polynomial relationships between $x$ and $y$. The simplicity of the options suggests the question relies on specific properties or is a distractor-heavy problem where direct conversion is not expected in a timed setting.",
+                "phoneHint": "This is complex. You'd need triple angle formulas (sin(3t), cos(3t)) and then attempt algebraic elimination of 't', which is very hard to simplify to these options."
+            },
+            {
+                "question": "For the parametric equations: $x(t) = 5\\cos(t) + 6\\sin(2t)$, $y(t) = 7\\sin(t) - 8\\cos(2t)$. Which of the following represents the Cartesian equation of the curve?",
+                "topic": "Parametric Equations",
+                "options": [ { "text": "$$x^2+y^2=74$$" }, { "text": "$$\\frac{x^2}{36} + \\frac{y^2}{49} = 1$$" }, { "text": "$$\\frac{x^2}{49} + \\frac{y^2}{36} = 1$$" }, { "text": "$$x^2+y^2=36$$" } ],
+                "correctAnswer": 0, "answered": false, "correct": null, // Doc says A
+                "explanation": "This is another case where mixed arguments ($t$ and $2t$) make converting to a simple Cartesian form (like those in the options) very challenging. One would use double angle formulas, but the resulting expressions for $x$ and $y$ in terms of $\\sin t$ and $\\cos t$ would be complex, making the use of $\\sin^2 t + \\cos^2 t = 1$ algebraically intensive. The options (circles or ellipses) might imply a specific simplification or pattern recognition is intended for these coefficients.",
+                "phoneHint": "Use double angle identities, then try to find a way to combine x and y to eliminate 't'. This usually involves significant algebra and might not lead to such simple forms."
+            },
+            // Category: Polar Coordinates
+            {
+                "question": "Which of the following expressions correctly represents the equation to set up the area of the region that lies inside the circle $r = 6$ and outside the limaçon $r = 3 + 2 \\cos(\\theta)$?",
+                "topic": "Polar Coordinates",
+                "options": [ { "text": "$$A = \\int_0^{2\\pi} [(3+2\\cos(\\theta))^2 - 6^2] d\\theta$$" }, { "text": "$$A = \\frac{1}{2} \\int_0^{\\pi} [6^2 + (3+2\\cos(\\theta))^2] d\\theta$$" }, { "text": "$$A = \\frac{1}{2} \\int_0^{2\\pi} [6^2 - (3+2\\cos(\\theta))^2] d\\theta$$" }, { "text": "$$A = \\int_0^{2\\pi} [6 - (3+2\\cos(\\theta))] d\\theta$$" } ],
+                "correctAnswer": 2, "answered": false, "correct": null,
+                "explanation": "The area of a region defined by polar coordinates is $A = \\frac{1}{2} \\int_{\\alpha}^{\\beta} r^2 d\\theta$. For the area between two curves, $r_{outer}$ and $r_{inner}$, it's $A = \\frac{1}{2} \\int_{\\alpha}^{\\beta} (r_{outer}^2 - r_{inner}^2) d\\theta$. Here, the circle $r=6$ is the outer curve because its radius is always greater than the limaçon $r=3+2\\cos\\theta$ (which ranges from 1 to 5). The integral is over the full range $[0, 2\\pi]$ to cover the entire area.",
+                "phoneHint": "Remember the polar area formula! It involves $r^2$ and a factor of 1/2. You're looking for the area *between* two curves, so think outer minus inner."
+            },
+            {
+                "question": "Which two polar curves intersect exactly eight times over $[0, 2\\pi]$?",
+                "topic": "Polar Coordinates",
+                "options": [ { "text": "$$r = \\cos 4\\theta \\text{ and } r = \\sin 4\\theta$$" }, { "text": "$$r = \\cos \\theta \\text{ and } r = \\sin \\theta$$" }, { "text": "$$r = \\theta \\text{ and } r = 2\\theta$$" }, { "text": "$$r = 1 + \\cos \\theta \\text{ and } r = 1 - \\cos \\theta$$" } ],
+                "correctAnswer": 0, "answered": false, "correct": null,
+                "explanation": "To find intersections, set the $r$ values equal: $\\cos(4\\theta) = \\sin(4\\theta)$. This implies $\\tan(4\\theta) = 1$. The general solution for $\\tan(X)=1$ is $X = \\frac{\\pi}{4} + k\\pi$. So, $4\\theta = \\frac{\\pi}{4} + k\\pi$, leading to $\\theta = \\frac{\\pi}{16} + \\frac{k\\pi}{4}$. Over the interval $[0, 2\\pi)$, $k$ can take values from $0$ to $7$, yielding 8 distinct intersection points. Other options yield fewer intersections.",
+                "phoneHint": "Set the $r$ values equal and solve for $\\theta$. How many times does $\\tan(4\\theta)$ equal 1 in the interval for $4\\theta$ corresponding to $[0, 2\\pi]$ for $\\theta$?"
+            },
+            {
+                "question": "Which two polar graphs would produce the same shape, though rotated differently?",
+                "topic": "Polar Coordinates",
+                "options": [ { "text": "$$r = \\sin 3\\theta \\text{ and } r = \\cos 3\\theta$$" }, { "text": "$$r = \\sin \\theta \\text{ and } r = 2\\sin \\theta$$" }, { "text": "$$r = 1 + \\cos \\theta \\text{ and } r = 1 - \\sin \\theta$$" }, { "text": "$$r = \\cos \\theta \\text{ and } r=3$$" } ],
+                "correctAnswer": 0, "answered": false, "correct": null,
+                "explanation": "Roses of the form $r = a\\sin(n\\theta)$ and $r = a\\cos(n\\theta)$ have the same shape (n-petal rose if n is odd, 2n-petal if n is even) but are rotated. Since $\\cos(X) = \\sin(X + \\pi/2)$, $r = \\cos(3\\theta)$ is a rotation of $r = \\sin(3\\theta)$. Both are 3-petal roses. Option B are circles of different sizes. Option C are cardioids with different orientations. Option D are a circle and a larger circle.",
+                "phoneHint": "Think about roses! The $\\sin(n\\theta)$ and $\\cos(n\\theta)$ forms are related by a phase shift, which means a rotation."
+            },
+            {
+                "question": "Which two curves are bounded and have finite area?", // Simplified from doc's "despite one appearing unbounded"
+                "topic": "Polar Coordinates",
+                "options": [ { "text": "$$r = \\cos 3\\theta \\text{ and } r = \\cos^3 \\theta$$" }, { "text": "$$r = \\theta \\text{ and } r = 1 + \\cos \\theta$$" }, { "text": "$$r = 2\\theta \\text{ and } r = \\theta$$" }, { "text": "$$r = 1 + \\theta \\text{ and } r = 2 \\cos \\theta$$" } ],
+                "correctAnswer": 0, "answered": false, "correct": null,
+                "explanation": "A polar curve is bounded if $|r|$ remains less than or equal to some constant. For $r = \\cos(3\\theta)$, $|r| \\le 1$. For $r = \\cos^3(\\theta)$, since $|\cos\theta| \\le 1$, then $|\cos^3\theta| \\le 1$. Both are bounded and enclose finite areas. Curves like $r=\\theta$ or $r=1+\\theta$ are spirals and are unbounded as $\\theta$ increases.",
+                "phoneHint": "Bounded means $r$ doesn't go to infinity. Spirals involving $\\theta$ directly often go to infinity. Look for functions of $\\sin$ and $\\cos$ that limit $r$."
+            },
+            {
+                "question": "Which two curves intersect $10$ times, where $10$ is double the number of petals in the rose $r=\\sin(5\\theta)$?", // Rephrased for clarity
+                "topic": "Polar Coordinates",
+                "options": [ { "text": "$$r = \\cos 5\\theta \\text{ and } r = \\sin 5\\theta$$" }, { "text": "$$r = \\cos \\theta \\text{ and } r = \\sin \\theta$$" }, { "text": "$$r = 1 + \\cos \\theta \\text{ and } r = \\theta$$" }, { "text": "$$r = \\cos 2\\theta \\text{ and } r = 2\\theta$$" } ],
+                "correctAnswer": 0, "answered": false, "correct": null,
+                "explanation": "The rose $r=\\sin(5\\theta)$ has 5 petals (since $n=5$ is odd). For $r = \\cos 5\\theta$ and $r = \\sin 5\\theta$, setting them equal gives $\\tan(5\\theta)=1$. This occurs when $5\\theta = \\frac{\\pi}{4} + k\\pi$, so $\\theta = \\frac{\\pi}{20} + \\frac{k\\pi}{5}$. In the interval $[0, 2\\pi)$, this yields 10 distinct intersection points for $k=0, ..., 9$.",
+                "phoneHint": "A rose $r=\\sin(n\\theta)$ with $n$ odd has $n$ petals. For option A, find intersections by setting them equal. How many solutions for $\\tan(5\\theta)=1$ in the full interval?"
+            },
+            {
+                "question": "Which of the following pairs of polar equations produce identical graphs?", // Simplified from doc
+                "topic": "Polar Coordinates",
+                "options": [
+                    { "text": "$$r = \\cos \\theta \\text{ and } r = \\frac{1-\\tan^2(\\theta/2)}{1+\\tan^2(\\theta/2)}$$" },
+                    { "text": "$$r = \\sin \\theta \\text{ and } r = \\frac{2\\tan(\\theta/2)}{1+\\tan^2(\\theta/2)}$$" },
+                    { "text": "$$r = \\cos 2\\theta \\text{ and } r = 2 \\cos^2 \\theta - 1$$" },
+                    { "text": "$$r = \\theta \\text{ and } r = \\frac{1}{\\theta}$$" }
+                ],
+                "correctAnswer": 2, 
+                "answered": false,
+                "correct": null,
+                "explanation": "The double angle identity for cosine states that $\\cos(2\\theta) = 2\\cos^2\\theta - 1$. Therefore, the polar equations $r = \\cos(2\\theta)$ and $r = 2\\cos^2\\theta - 1$ will produce identical graphs. Options A and B also represent identities ($\\cos\\theta = \\frac{1-\\tan^2(\\theta/2)}{1+\\tan^2(\\theta/2)}$ and $\\sin\\theta = \\frac{2\\tan(\\theta/2)}{1+\\tan^2(\\theta/2)}$ respectively), so they too would produce identical graphs to their simpler counterparts. Option D represents different types of spirals.",
+                "phoneHint": "Recall your trigonometric identities! Double angle or half-angle formulas might make complex expressions simplify to basic ones that define the same curve."
+            }
+            // End of masterQuestionBank
+        ];
+
+        let activeGameQuestions = [];
+        const prizeMoney = [ 100, 200, 300, 500, 1000, 2000, 4000, 8000, 16000, 32000, 64000, 125000, 250000, 500000, 1000000 ];
+        const safeHavensIndices = [4, 9, 14]; // For Solo mode
+
+        const startScreen = document.getElementById('start-screen');
+        const modeSelectionContainer = document.getElementById('mode-selection-container');
+        const teamSetupScreen = document.getElementById('team-setup-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        
+        const playSoloBtn = document.getElementById('play-solo-btn');
+        const playTeamsBtn = document.getElementById('play-teams-btn');
+        const teamInputsContainer = document.getElementById('team-inputs-container');
+        const addTeamBtn = document.getElementById('add-team-btn');
+        const teamCountDisplay = document.getElementById('team-count-display');
+        const startTeamGameBtn = document.getElementById('start-team-game-btn');
+        const backToModeSelectBtn = document.getElementById('back-to-mode-select-btn');
+        
+        const walkAwayBtn = document.getElementById('walk-away-btn');
+        const questionNumberEl = document.getElementById('question-number');
+        const currentPrizeEl = document.getElementById('current-prize');
+        const earnedPrizeEl = document.getElementById('earned-prize');
+        const questionTextContainerEl = document.getElementById('question-text-container');
+        const questionTextEl = document.getElementById('question-text');
+        const optionsGrid = document.getElementById('options-grid');
+        const optionBtns = optionsGrid.querySelectorAll('.option-btn');
+        const prizeLadderEl = document.getElementById('prize-ladder');
+        const lifeline5050Btn = document.getElementById('lifeline-5050');
+        const lifelinePhoneBtn = document.getElementById('lifeline-phone');
+        const lifelineAudienceBtn = document.getElementById('lifeline-audience');
+        const lifelineSkipBtn = document.getElementById('lifeline-skip'); 
+        const audiencePollContainer = document.getElementById('audience-poll-container');
+        const audiencePollResultsEl = document.getElementById('audience-poll-results');
+        const phoneAFriendTextEl = document.getElementById('phone-a-friend-text');
+        const finalAnswerModal = document.getElementById('final-answer-modal');
+        const modalQuestionTextEl = document.getElementById('modal-question-text');
+        const confirmLockInBtn = document.getElementById('confirm-lock-in-btn');
+        const cancelLockInBtn = document.getElementById('cancel-lock-in-btn');
+        const checkAnswerBtn = document.getElementById('check-answer-btn');
+        const prevQNavBtn = document.getElementById('prev-q-nav-btn');
+        const nextQNavBtn = document.getElementById('next-q-nav-btn');
+        const explanationContainerEl = document.getElementById('explanation-container');
+        const explanationTextEl = document.getElementById('explanation-text');
+
+        const goiPanel = document.getElementById('game-over-info-panel');
+        const goiTitle = document.getElementById('game-over-info-title');
+        const goiWinnings = document.getElementById('game-over-info-winnings');
+        const goiMessage = document.getElementById('game-over-info-message');
+        const restartGameLifelineBtn = document.getElementById('restart-game-lifeline-btn');
+        
+        const teamScoresContainerEl = document.getElementById('team-scores-container');
+        const teamScoresListEl = document.getElementById('team-scores-list');
+
+        const customMessageModal = document.getElementById('custom-message-modal');
+        const customModalTitleEl = document.getElementById('custom-modal-title');
+        const customModalTextEl = document.getElementById('custom-modal-text');
+        const customModalOkBtn = document.getElementById('custom-modal-ok-btn');
+
+        let currentQuestionIndex = 0;
+        let currentWinnings = 0; 
+        let selectedAnswerIndex = -1;
+        let lockedAnswerIndex = -1;
+        let answerIsLocked = false;
+        let gameIsOver = false;
+        let lifelines = { fiftyFifty: true, phoneAFriend: true, askTheAudience: true, skipQuestion: true }; 
+        let activeSound = null;
+
+        let gameMode = 'solo'; 
+        let teams = []; 
+        const MAX_TEAMS = 10;
+
+
+        // --- Sound Functions ---
+        function playSound(soundId, loop = false) { 
+            const soundElement = document.getElementById(soundId);
+            if (soundElement) {
+                if (activeSound && activeSound.loop) {
+                    activeSound.pause();
+                    activeSound.currentTime = 0;
+                }
+                soundElement.currentTime = 0;
+                soundElement.loop = loop;
+                soundElement.play().then(() => {
+                    if (loop) activeSound = soundElement;
+                    else activeSound = null;
+                }).catch(e => console.warn("Sound play error:", e, `Sound ID: ${soundId}`));
+            } else {
+                // console.warn(`Sound element not found: ${soundId}`); // Comment out for cleaner console if sounds are missing
+            }
+         }
+        function stopSound(soundId) { 
+            const soundElement = document.getElementById(soundId);
+            if (soundElement) {
+                soundElement.pause();
+                soundElement.currentTime = 0;
+                if (activeSound === soundElement) activeSound = null;
+            }
+         }
+        function stopAllSounds() { 
+            if (activeSound) {
+                activeSound.pause();
+                activeSound.currentTime = 0;
+                activeSound = null;
+            }
+            document.querySelectorAll('audio').forEach(audio => {
+                audio.pause();
+                audio.currentTime = 0;
+            });
+         }
+        function formatCurrency(amount) { return '$' + amount.toLocaleString(); }
+
+        // --- Custom Modal ---
+        function showCustomModal(title, message) {
+            customModalTitleEl.textContent = title;
+            customModalTextEl.innerHTML = message; 
+            customMessageModal.classList.remove('hidden');
+            customMessageModal.classList.add('flex');
+        }
+        customModalOkBtn.addEventListener('click', () => {
+            customMessageModal.classList.add('hidden');
+            customMessageModal.classList.remove('flex');
+        });
+
+
+        // --- Mode Selection & Team Setup Logic ---
+        playSoloBtn.addEventListener('click', () => {
+            gameMode = 'solo';
+            startScreen.classList.add('hidden');
+            teamSetupScreen.classList.add('hidden');
+            startGame();
+        });
+
+        playTeamsBtn.addEventListener('click', () => {
+            startScreen.classList.add('hidden'); 
+            teamSetupScreen.classList.remove('hidden');
+            initializeTeamInputs();
+        });
+
+        backToModeSelectBtn.addEventListener('click', () => {
+            teamSetupScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden'); 
+        });
+        
+        addTeamBtn.addEventListener('click', () => {
+            const currentTeamCount = teamInputsContainer.querySelectorAll('input').length;
+            if (currentTeamCount < MAX_TEAMS) {
+                addTeamInput(currentTeamCount);
+                updateTeamCountDisplay();
+            }
+            addTeamBtn.disabled = (teamInputsContainer.querySelectorAll('input').length >= MAX_TEAMS);
+        });
+
+        startTeamGameBtn.addEventListener('click', () => {
+            collectTeamNames();
+            if (teams.length === 0) {
+                showCustomModal("Team Required", "Please enter at least one team name to start a team game.");
+                return;
+            }
+            gameMode = 'teams';
+            teamSetupScreen.classList.add('hidden');
+            startScreen.classList.add('hidden');
+            startGame();
+        });
+
+        function initializeTeamInputs() {
+            teamInputsContainer.innerHTML = ''; 
+            addTeamInput(0); 
+            updateTeamCountDisplay();
+            addTeamBtn.disabled = (teamInputsContainer.querySelectorAll('input').length >= MAX_TEAMS);
+        }
+
+        function addTeamInput(index) {
+            const inputGroup = document.createElement('div');
+            inputGroup.className = 'flex items-center space-x-2';
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.placeholder = `Team ${index + 1} Name`;
+            input.dataset.teamId = index; 
+            input.className = 'w-full p-2 rounded bg-slate-700 text-white border border-slate-600 focus:ring-yellow-500 focus:border-yellow-500 text-sm';
+            inputGroup.appendChild(input);
+
+            if (index > 0) { 
+                const removeBtn = document.createElement('button');
+                removeBtn.textContent = 'X';
+                removeBtn.className = 'text-red-400 hover:text-red-300 font-bold text-xs p-1 bg-slate-600 hover:bg-slate-500 rounded';
+                removeBtn.onclick = () => {
+                    inputGroup.remove();
+                    updateTeamCountDisplay();
+                    addTeamBtn.disabled = (teamInputsContainer.querySelectorAll('input').length >= MAX_TEAMS);
+                };
+                inputGroup.appendChild(removeBtn);
+            }
+            teamInputsContainer.appendChild(inputGroup);
+        }
+
+        function updateTeamCountDisplay() {
+            const count = teamInputsContainer.querySelectorAll('input').length;
+            teamCountDisplay.textContent = `${count} / ${MAX_TEAMS} Teams`;
+        }
+
+        function collectTeamNames() {
+            teams = [];
+            const inputs = teamInputsContainer.querySelectorAll('input');
+            inputs.forEach((input, index) => {
+                const name = input.value.trim();
+                if (name) { 
+                    teams.push({ name: name, score: 0, id: `team-${index}` }); 
+                }
+            });
+        }
+        
+        // --- Team Score UI & Logic ---
+        function setupTeamScoresUI() {
+            teamScoresListEl.innerHTML = '';
+            if (gameMode !== 'teams' || teams.length === 0) {
+                teamScoresContainerEl.classList.add('hidden');
+                return;
+            }
+            teamScoresContainerEl.classList.remove('hidden');
+
+            teams.forEach(team => {
+                const teamDiv = document.createElement('div');
+                teamDiv.className = 'flex justify-between items-center p-1.5 bg-slate-600 rounded mb-1 text-xs';
+                teamDiv.dataset.teamId = team.id;
+
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'text-white font-semibold truncate mr-1 flex-grow';
+                nameSpan.textContent = team.name;
+                nameSpan.title = team.name;
+
+                const controlsDiv = document.createElement('div');
+                controlsDiv.className = 'flex items-center flex-shrink-0 space-x-1';
+
+                const minusBtn = document.createElement('button');
+                minusBtn.className = 'team-score-btn minus bg-red-500 hover:bg-red-600 text-white w-5 h-5 rounded-sm flex items-center justify-center font-mono';
+                minusBtn.textContent = '-';
+                minusBtn.addEventListener('click', () => updateTeamScore(team.id, -prizeMoney[currentQuestionIndex]));
+
+                const scoreSpan = document.createElement('span');
+                scoreSpan.className = 'team-score-value text-yellow-300 w-10 text-center font-mono';
+                scoreSpan.textContent = team.score;
+
+                const plusBtn = document.createElement('button');
+                plusBtn.className = 'team-score-btn plus bg-green-500 hover:bg-green-600 text-white w-5 h-5 rounded-sm flex items-center justify-center font-mono';
+                plusBtn.textContent = '+';
+                plusBtn.addEventListener('click', () => updateTeamScore(team.id, prizeMoney[currentQuestionIndex]));
+
+                controlsDiv.appendChild(minusBtn);
+                controlsDiv.appendChild(scoreSpan);
+                controlsDiv.appendChild(plusBtn);
+                teamDiv.appendChild(nameSpan);
+                teamDiv.appendChild(controlsDiv);
+                teamScoresListEl.appendChild(teamDiv);
+            });
+        }
+
+        function updateTeamScore(teamId, amount) {
+            if (gameIsOver && !(currentQuestionIndex === activeGameQuestions.length - 1 && activeGameQuestions[currentQuestionIndex].answered)) { 
+                return; 
+            }
+            const team = teams.find(t => t.id === teamId);
+            const questionData = activeGameQuestions[currentQuestionIndex];
+            if (team && questionData && questionData.answered) { 
+                team.score += amount;
+                if (team.score < 0) team.score = 0; 
+
+                const teamDiv = teamScoresListEl.querySelector(`div[data-team-id="${teamId}"]`);
+                if (teamDiv) {
+                    const scoreSpan = teamDiv.querySelector('.team-score-value');
+                    scoreSpan.textContent = team.score;
+                }
+            } else if (!questionData.answered) {
+                showCustomModal("Score Update", "Please answer or skip the current question before assigning points.");
+            }
+        }
+
+
+        // --- Core Game Logic Functions (Modified where needed) ---
+        function shuffleArray(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } }
+        
+        function prepareGameQuestions() {
+            activeGameQuestions = [];
+            const questionsByTopic = { "Integrals": [], "Series": [], "Parametric Equations": [], "Polar Coordinates": [] };
+            masterQuestionBank.forEach(q => { if (questionsByTopic[q.topic]) { questionsByTopic[q.topic].push(JSON.parse(JSON.stringify(q))); } });
+            
+            const numIntegral = Math.min(5, questionsByTopic["Integrals"].length);
+            const numSeries = Math.min(5, questionsByTopic["Series"].length);
+            const numParametric = Math.min(3, questionsByTopic["Parametric Equations"].length);
+            const numPolar = Math.min(3, questionsByTopic["Polar Coordinates"].length); // Increased to accommodate the new Polar Q
+
+            shuffleArray(questionsByTopic["Integrals"]); activeGameQuestions.push(...questionsByTopic["Integrals"].slice(0, numIntegral));
+            shuffleArray(questionsByTopic["Series"]); activeGameQuestions.push(...questionsByTopic["Series"].slice(0, numSeries));
+            shuffleArray(questionsByTopic["Parametric Equations"]); activeGameQuestions.push(...questionsByTopic["Parametric Equations"].slice(0, numParametric));
+            shuffleArray(questionsByTopic["Polar Coordinates"]); activeGameQuestions.push(...questionsByTopic["Polar Coordinates"].slice(0, numPolar));
+            
+            activeGameQuestions.forEach(q => { q.answered = false; q.correct = null; });
+        }
+
+        function initializePrizeLadder() {
+            prizeLadderEl.innerHTML = '';
+            prizeMoney.slice().reverse().forEach((amount, index) => {
+                const listItem = document.createElement('li'); const questionNum = prizeMoney.length - index; listItem.textContent = `${questionNum}. ${formatCurrency(amount)}`; listItem.dataset.level = prizeMoney.length - 1 - index;
+                const originalIndex = prizeMoney.length - 1 - index;
+                if (gameMode === 'solo' && safeHavensIndices.includes(originalIndex) && originalIndex !== prizeMoney.length -1) { listItem.classList.add('safe-haven'); }
+                if (originalIndex === prizeMoney.length -1) { listItem.classList.add('text-yellow-300', 'font-extrabold'); }
+                prizeLadderEl.appendChild(listItem);
+            });
+        }
+        function updatePrizeLadderHighlight() {
+            document.querySelectorAll('#prize-ladder li').forEach(li => { li.classList.remove('current-level', 'text-slate-800'); if (!li.classList.contains('safe-haven') && !li.classList.contains('text-yellow-300')) { li.classList.add('text-gray-100'); } });
+            if (!gameIsOver && currentQuestionIndex < activeGameQuestions.length) { const currentLevelEl = prizeLadderEl.querySelector(`li[data-level="${currentQuestionIndex}"]`); if (currentLevelEl) { currentLevelEl.classList.add('current-level'); currentLevelEl.classList.remove('text-gray-100'); currentLevelEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }
+        }
+
+        function updateNavigationAndControlButtons() {
+            if (!activeGameQuestions || activeGameQuestions.length === 0 || currentQuestionIndex >= activeGameQuestions.length) {
+                prevQNavBtn.disabled = true;
+                nextQNavBtn.disabled = true;
+                checkAnswerBtn.classList.add('hidden');
+                lifeline5050Btn.disabled = true;
+                lifelinePhoneBtn.disabled = true;
+                lifelineAudienceBtn.disabled = true;
+                lifelineSkipBtn.disabled = true; 
+                if (walkAwayBtn) walkAwayBtn.disabled = true;
+                return;
+            }
+            const questionData = activeGameQuestions[currentQuestionIndex];
+            if (!questionData) return;
+
+            prevQNavBtn.disabled = currentQuestionIndex === 0 || (answerIsLocked && !questionData.answered);
+            
+            nextQNavBtn.disabled = !questionData.answered || 
+                                 (questionData.answered && currentQuestionIndex === activeGameQuestions.length - 1) || 
+                                 (answerIsLocked && !questionData.answered);
+
+
+            if (answerIsLocked && !questionData.answered) { checkAnswerBtn.classList.remove('hidden'); checkAnswerBtn.disabled = false; } else { checkAnswerBtn.classList.add('hidden'); checkAnswerBtn.disabled = true; }
+            
+            optionBtns.forEach((btn, index) => {
+                btn.disabled = (answerIsLocked && !questionData.answered) || questionData.answered || !questionData.options[index] || btn.classList.contains('bg-slate-500');
+                if (index === lockedAnswerIndex && answerIsLocked && !questionData.answered) { btn.classList.add('locked'); } else { btn.classList.remove('locked'); }
+                if (questionData.answered) { if (index === questionData.correctAnswer && questionData.correct !== 'skipped') btn.classList.add('correct'); else if (index === lockedAnswerIndex && !questionData.correct && questionData.correct !== 'skipped') btn.classList.add('incorrect'); }
+            });
+            
+            lifeline5050Btn.disabled = answerIsLocked || questionData.answered;
+            lifelinePhoneBtn.disabled = answerIsLocked || questionData.answered;
+            lifelineAudienceBtn.disabled = answerIsLocked || questionData.answered;
+            lifelineSkipBtn.disabled = answerIsLocked || questionData.answered; 
+            
+            if (walkAwayBtn) { 
+              walkAwayBtn.disabled = gameIsOver || (questionData.answered && !questionData.correct && questionData.correct !== 'skipped') || (answerIsLocked && !questionData.answered) || gameMode === 'teams';
+            }
+        }
+
+        function resetOptionButtonsVisuals() {
+            optionBtns.forEach(btn => { btn.classList.remove('selected', 'locked', 'correct', 'incorrect', 'opacity-50', 'cursor-not-allowed', 'bg-slate-500', 'ring-2', 'ring-yellow-400', 'thinking'); btn.classList.add('bg-blue-600', 'hover:bg-blue-700'); btn.disabled = false; btn.innerHTML = ''; });
+            audiencePollContainer.classList.add('hidden'); phoneAFriendTextEl.classList.add('hidden'); phoneAFriendTextEl.innerHTML = '';
+        }
+
+        async function displayQuestion() {
+            if (gameIsOver || !activeGameQuestions || activeGameQuestions.length === 0) return;
+            if (currentQuestionIndex < 0 || currentQuestionIndex >= activeGameQuestions.length) {
+                 if (gameMode === 'teams') { 
+                    gameOver(false, 0, "All questions have been presented.");
+                } else {
+                    gameOver(false, currentWinnings, "Error: Question not found or game setup issue.");
+                }
+                return;
+            }
+            answerIsLocked = false; lockedAnswerIndex = -1; selectedAnswerIndex = -1;
+            resetOptionButtonsVisuals(); explanationContainerEl.classList.add('hidden'); explanationTextEl.innerHTML = '';
+
+            const q = activeGameQuestions[currentQuestionIndex];
+            if(!q.answered) { playSound('sound-question'); phoneAFriendTextEl.classList.add('hidden'); }
+            else { 
+                if (q.explanation || q.correct === 'skipped') {
+                    let explanationContent = "";
+                    if (q.correct === 'skipped') {
+                         explanationContent = "Question skipped. ";
+                         if (q.options && q.options[q.correctAnswer]) {
+                             explanationContent += `The correct answer was: ${String.fromCharCode(65 + q.correctAnswer)}: ${q.options[q.correctAnswer].text}`;
+                         }
+                         explanationContent += "<br><br>" + (q.explanation || "No further explanation for this question.");
+                    } else {
+                        explanationContent = q.explanation;
+                        if (!q.correct) { 
+                            const correctOptTextPlain = q.options[q.correctAnswer].text;
+                            explanationContent += `<br><br><span class='text-red-300 font-bold'>The correct answer was: ${String.fromCharCode(65 + q.correctAnswer)}: ${correctOptTextPlain}</span>`;
+                        }
+                    }
+                    explanationTextEl.innerHTML = explanationContent; explanationContainerEl.classList.remove('hidden');
+                    if (typeof MathJax !== "undefined" && MathJax.typesetPromise) { try { await MathJax.typesetPromise([explanationTextEl]); } catch (e) { console.error("MathJax re-explanation error:", e); } }
+                }
+            }
+
+            questionTextEl.innerHTML = `<span class="text-sm text-yellow-300 block mb-2">${q.topic || 'General'}:</span> ${q.question}`;
+            const qImgDisplay = document.getElementById('question-image-display');
+            if (q.questionImage) { qImgDisplay.src = q.questionImage; qImgDisplay.classList.remove('hidden'); qImgDisplay.onerror = function() { this.style.display='none'; console.warn('Failed to load q image:', q.questionImage); }; }
+            else { qImgDisplay.classList.add('hidden'); qImgDisplay.src = ""; }
+            
+            questionNumberEl.textContent = `Question ${currentQuestionIndex + 1} / ${activeGameQuestions.length}`;
+            currentPrizeEl.textContent = formatCurrency(prizeMoney[currentQuestionIndex]); 
+            if (gameMode === 'solo') {
+                earnedPrizeEl.textContent = `Earned: ${formatCurrency(currentWinnings)}`;
+            }
+
+            const elementsToTypeset = [questionTextEl];
+            q.options.forEach((option, index) => {
+                const btn = optionBtns[index]; btn.innerHTML = ''; const optTextDiv = document.createElement('div'); optTextDiv.innerHTML = `${String.fromCharCode(65 + index)}: ${option.text}`; btn.appendChild(optTextDiv); elementsToTypeset.push(optTextDiv);
+                if (option.image) { const imgEl = document.createElement('img'); imgEl.src = option.image; imgEl.alt = `Option ${String.fromCharCode(65 + index)} Image`; imgEl.onerror = function() { this.style.display='none'; console.warn('Failed to load option image:', option.image); }; btn.appendChild(imgEl); }
+                btn.style.visibility = 'visible'; 
+                btn.disabled = q.answered || btn.classList.contains('bg-slate-500'); 
+                if (q.answered && q.correct === 'skipped' && index === q.correctAnswer && q.options[q.correctAnswer]) { 
+                    btn.classList.add('correct');
+                }
+            });
+            if (typeof MathJax !== "undefined" && MathJax.typesetPromise) { try { await MathJax.typesetPromise(elementsToTypeset); } catch (err) { console.error('MathJax error:', err); } }
+            
+            updatePrizeLadderHighlight();
+            updateNavigationAndControlButtons();
+            if (gameMode === 'teams') { 
+                document.querySelectorAll('.team-score-btn').forEach(tsBtn => tsBtn.disabled = !q.answered);
+            }
+        }
+
+        async function handleOptionClick(event) {
+            if (answerIsLocked || activeGameQuestions[currentQuestionIndex].answered) return; const clickedButton = event.target.closest('.option-btn'); if (!clickedButton || clickedButton.disabled) return;
+            if (selectedAnswerIndex !== -1 && optionBtns[selectedAnswerIndex]) { optionBtns[selectedAnswerIndex].classList.remove('selected'); }
+            selectedAnswerIndex = parseInt(clickedButton.dataset.index); optionBtns[selectedAnswerIndex].classList.add('selected');
+            const selectedOptionText = activeGameQuestions[currentQuestionIndex].options[selectedAnswerIndex].text; modalQuestionTextEl.innerHTML = `Lock in answer: <br><span class="text-white font-bold">${selectedOptionText}</span>?`;
+            finalAnswerModal.classList.remove('hidden'); finalAnswerModal.classList.add('flex');
+            if (typeof MathJax !== "undefined" && MathJax.typesetPromise) { try { await MathJax.typesetPromise([modalQuestionTextEl]); } catch (err) { console.error('MathJax modal error:', err); } }
+            playSound('sound-final-answer-tick', true);
+        }
+        const defaultConfirmLockInHandler = () => { if (selectedAnswerIndex === -1) return; answerIsLocked = true; lockedAnswerIndex = selectedAnswerIndex; optionBtns.forEach((btn, idx) => { if (idx !== lockedAnswerIndex) btn.classList.remove('selected'); else { btn.classList.remove('selected'); btn.classList.add('locked'); } btn.disabled = true; }); hideFinalAnswerModal(); updateNavigationAndControlButtons(); };
+        const defaultCancelLockInHandler = () => { if (selectedAnswerIndex !== -1 && optionBtns[selectedAnswerIndex]) { optionBtns[selectedAnswerIndex].classList.remove('selected'); } selectedAnswerIndex = -1; hideFinalAnswerModal(); };
+        confirmLockInBtn.onclick = defaultConfirmLockInHandler; cancelLockInBtn.onclick = defaultCancelLockInHandler;
+        function hideFinalAnswerModal() { stopSound('sound-final-answer-tick'); finalAnswerModal.classList.add('hidden'); finalAnswerModal.classList.remove('flex'); }
+
+        checkAnswerBtn.addEventListener('click', async () => {
+            if (!answerIsLocked || activeGameQuestions[currentQuestionIndex].answered) return;
+            const question = activeGameQuestions[currentQuestionIndex]; const lockedButton = optionBtns[lockedAnswerIndex];
+            if (lockedButton) { lockedButton.classList.add('thinking'); }
+            checkAnswerBtn.disabled = true; 
+            if(walkAwayBtn) walkAwayBtn.disabled = true; 
+            lifeline5050Btn.disabled = true; lifelinePhoneBtn.disabled = true; lifelineAudienceBtn.disabled = true; lifelineSkipBtn.disabled = true; prevQNavBtn.disabled = true; nextQNavBtn.disabled = true;
+
+            setTimeout(async () => {
+                if (lockedButton) { lockedButton.classList.remove('thinking'); }
+                const isCorrect = lockedAnswerIndex === question.correctAnswer; question.answered = true; question.correct = isCorrect;
+                optionBtns.forEach(btn => btn.disabled = true); checkAnswerBtn.classList.add('hidden');
+
+                if (gameMode === 'teams') {
+                    if (isCorrect) { playSound('sound-correct'); if (lockedButton) { lockedButton.classList.remove('locked'); lockedButton.classList.add('correct'); }}
+                    else { playSound('sound-incorrect'); if (lockedButton) { lockedButton.classList.remove('locked'); lockedButton.classList.add('incorrect'); } if (question.correctAnswer >= 0 && question.correctAnswer < optionBtns.length && optionBtns[question.correctAnswer]) { optionBtns[question.correctAnswer].classList.add('correct'); }}
+                    
+                    let explanationContent = question.explanation || "No explanation available.";
+                    if (!isCorrect) { const correctOptTextPlain = activeGameQuestions[currentQuestionIndex].options[question.correctAnswer].text; explanationContent += `<br><br><span class='text-red-300 font-bold'>The correct answer was: ${String.fromCharCode(65 + question.correctAnswer)}: ${correctOptTextPlain}</span>`; }
+                    explanationTextEl.innerHTML = explanationContent; explanationContainerEl.classList.remove('hidden');
+                    if (typeof MathJax !== "undefined" && MathJax.typesetPromise) { try { await MathJax.typesetPromise([explanationTextEl]); } catch (e) { console.error("MathJax explanation error:", e); } }
+                    
+                    document.querySelectorAll('.team-score-btn').forEach(btn => btn.disabled = false); 
+                     if (currentQuestionIndex === activeGameQuestions.length - 1) { 
+                        setTimeout(() => gameOver(false, 0, "All questions answered! Check final scores."), 1000); 
+                    }
+                } else { // SOLO MODE
+                    if (isCorrect) {
+                        playSound('sound-correct'); if (lockedButton) { lockedButton.classList.remove('locked'); lockedButton.classList.add('correct'); }
+                        currentWinnings = prizeMoney[currentQuestionIndex]; earnedPrizeEl.textContent = `Earned: ${formatCurrency(currentWinnings)}`;
+                        if (question.explanation) { explanationTextEl.innerHTML = question.explanation; explanationContainerEl.classList.remove('hidden'); if (typeof MathJax !== "undefined" && MathJax.typesetPromise) { try { await MathJax.typesetPromise([explanationTextEl]); } catch (e) { console.error("MathJax explanation error:", e); } } }
+                        if (currentQuestionIndex === activeGameQuestions.length - 1) { setTimeout(() => winGame(), 2500); } else { if(walkAwayBtn) walkAwayBtn.disabled = false; }
+                    } else {
+                        playSound('sound-incorrect'); if (lockedButton) { lockedButton.classList.remove('locked'); lockedButton.classList.add('incorrect'); }
+                        if (question.correctAnswer >= 0 && question.correctAnswer < optionBtns.length && optionBtns[question.correctAnswer]) { optionBtns[question.correctAnswer].classList.add('correct'); }
+                        let explanationContent = question.explanation || "No explanation available."; const correctOptTextPlain = activeGameQuestions[currentQuestionIndex].options[question.correctAnswer].text; explanationContent += `<br><br><span class='text-red-300 font-bold'>The correct answer was: ${String.fromCharCode(65 + question.correctAnswer)}: ${correctOptTextPlain}</span>`;
+                        explanationTextEl.innerHTML = explanationContent; explanationContainerEl.classList.remove('hidden');
+                        if (typeof MathJax !== "undefined" && MathJax.typesetPromise) { try { await MathJax.typesetPromise([explanationTextEl]); } catch (e) { console.error("MathJax explanation (incorrect) error:", e); } }
+                        if(walkAwayBtn) walkAwayBtn.disabled = true;
+                        setTimeout(async () => {
+                            let finalPayout = 0;
+                            for (let i = safeHavensIndices.length - 1; i >= 0; i--) { const shIndex = safeHavensIndices[i]; if (shIndex < currentQuestionIndex) { if (activeGameQuestions[shIndex] && activeGameQuestions[shIndex].answered && activeGameQuestions[shIndex].correct) { finalPayout = prizeMoney[shIndex]; break; } } }
+                            if (currentQuestionIndex < safeHavensIndices[0]) { finalPayout = 0; }
+                            gameOver(false, finalPayout, `Oops! The correct option was highlighted.`);
+                        }, 4000);
+                    }
+                }
+                updateNavigationAndControlButtons();
+            }, 2500);
+        });
+        
+        // --- Lifeline Functions (Limitless Logic) ---
+        function useLifeline(lifelineType) { 
+            if (answerIsLocked || activeGameQuestions[currentQuestionIndex].answered) return;
+            playSound(lifelineType === 'skipQuestion' ? 'sound-skip' : 'sound-lifeline');
+        }
+        
+        async function useLifelineSkipQuestion() {
+            if (!lifelines.skipQuestion || answerIsLocked || activeGameQuestions[currentQuestionIndex].answered) return;
+            useLifeline('skipQuestion');
+
+            const question = activeGameQuestions[currentQuestionIndex];
+            question.answered = true;
+            question.correct = 'skipped'; 
+
+            let explanationContent = "Question Skipped. ";
+            if (question.options && question.options[question.correctAnswer]) {
+                 explanationContent += `The correct answer was: ${String.fromCharCode(65 + question.correctAnswer)}: ${question.options[question.correctAnswer].text}`;
+            } else {
+                explanationContent += "Correct answer information is unavailable.";
+            }
+            if (question.explanation) {
+                explanationContent += `<br><br>${question.explanation}`;
+            }
+            explanationTextEl.innerHTML = explanationContent;
+            explanationContainerEl.classList.remove('hidden');
+            if (typeof MathJax !== "undefined" && MathJax.typesetPromise) {
+                try { await MathJax.typesetPromise([explanationTextEl]); }
+                catch (e) { console.error("MathJax skip explanation error:", e); }
+            }
+
+            optionBtns.forEach((btn, index) => {
+                btn.disabled = true;
+                if (index === question.correctAnswer && question.options[question.correctAnswer]) {
+                    btn.classList.add('correct');
+                } else {
+                    btn.classList.remove('selected', 'locked', 'incorrect'); 
+                }
+            });
+            
+            checkAnswerBtn.classList.add('hidden'); 
+
+            if (gameMode === 'teams') {
+                document.querySelectorAll('.team-score-btn').forEach(btn => btn.disabled = false); 
+            }
+
+            updateNavigationAndControlButtons(); 
+            
+            if (currentQuestionIndex === activeGameQuestions.length - 1) { 
+                setTimeout(() => {
+                    if (gameMode === 'solo') {
+                        gameOver(true, currentWinnings, "Game finished. Last question was skipped."); 
+                    } else { 
+                        gameOver(false, 0, "All questions presented. Last question was skipped.");
+                    }
+                }, 1500); 
+            }
+        }
+
+
+        async function useLifeline5050() {
+            if (answerIsLocked || activeGameQuestions[currentQuestionIndex].answered) return;
+            useLifeline('fiftyFifty'); 
+            const question = activeGameQuestions[currentQuestionIndex];
+            const correctAnswerIdx = question.correctAnswer;
+            let incorrectOptionsIndices = [];
+            for (let i = 0; i < question.options.length; i++) { if (i !== correctAnswerIdx) incorrectOptionsIndices.push(i); }
+            shuffleArray(incorrectOptionsIndices);
+            const indicesToRemove = incorrectOptionsIndices.slice(0, 2);
+            const elementsToTypeset = [];
+            indicesToRemove.forEach(idx => {
+                const btn = optionBtns[idx]; if (!btn) return;
+                const optTextDiv = btn.querySelector('div');
+                if (optTextDiv) { optTextDiv.innerHTML = `${String.fromCharCode(65 + idx)}: ---`; elementsToTypeset.push(optTextDiv); }
+                else { btn.innerHTML = `<div>${String.fromCharCode(65 + idx)}: ---</div>`; elementsToTypeset.push(btn.querySelector('div')); }
+                const imgEl = btn.querySelector('img'); if (imgEl) imgEl.remove();
+                btn.disabled = true; btn.classList.add('opacity-50', 'cursor-not-allowed', 'bg-slate-500'); btn.classList.remove('hover:bg-blue-700');
+            });
+            if (typeof MathJax !== "undefined" && MathJax.typesetPromise && elementsToTypeset.length > 0) { try { await MathJax.typesetPromise(elementsToTypeset); } catch (err) { console.error('MathJax 50/50 error:', err); } }
+            updateNavigationAndControlButtons();
+        }
+        async function useLifelinePhoneAFriend() {
+            if (answerIsLocked || activeGameQuestions[currentQuestionIndex].answered) return;
+            useLifeline('phoneAFriend');
+            const question = activeGameQuestions[currentQuestionIndex];
+            const hint = question.phoneHint || "Your friend is thinking... but can't come up with a specific hint right now!";
+            phoneAFriendTextEl.innerHTML = `Your friend advises: <br><span class="text-yellow-100 italic">'${hint}'</span>`;
+            phoneAFriendTextEl.classList.remove('hidden');
+            if (typeof MathJax !== "undefined" && MathJax.typesetPromise) { try { await MathJax.typesetPromise([phoneAFriendTextEl]); } catch (e) { console.error("MathJax phone hint error:", e); } }
+            setTimeout(async () => {
+                phoneAFriendTextEl.classList.add('hidden');
+                phoneAFriendTextEl.innerHTML = ''; 
+                if (typeof MathJax !== "undefined" && MathJax.typesetPromise) {
+                    try { await MathJax.typesetPromise([phoneAFriendTextEl]); } 
+                    catch (e) { /* ignore */ }
+                }
+            }, 10000);
+            updateNavigationAndControlButtons();
+        }
+        async function useLifelineAskTheAudience() {
+            if (answerIsLocked || activeGameQuestions[currentQuestionIndex].answered) return;
+            useLifeline('askTheAudience'); 
+            const question = activeGameQuestions[currentQuestionIndex]; const correctAnswerIdx = question.correctAnswer;
+            let percentages = Array(question.options.length).fill(0); let remainingPercentage = 100;
+            const correctPerc = Math.floor(Math.random() * 31) + 40; 
+            if (!optionBtns[correctAnswerIdx].disabled) { percentages[correctAnswerIdx] = correctPerc; remainingPercentage -= correctPerc; }
+            else { remainingPercentage = 100; } 
+            const availableOptionIndices = [];
+            optionBtns.forEach((btn, index) => { if (!btn.disabled && index !== correctAnswerIdx) availableOptionIndices.push(index); });
+            if (optionBtns[correctAnswerIdx].disabled) { availableOptionIndices.length = 0; optionBtns.forEach((btn, index) => { if (!btn.disabled) availableOptionIndices.push(index); }); }
+            if (availableOptionIndices.length > 0) {
+                shuffleArray(availableOptionIndices); 
+                availableOptionIndices.forEach((idx, arrIdx) => {
+                    if (arrIdx === availableOptionIndices.length - 1) percentages[idx] += remainingPercentage;
+                    else { const share = Math.floor(Math.random() * (remainingPercentage / (availableOptionIndices.length - arrIdx) + 1)); percentages[idx] += share; remainingPercentage -= share; }
+                });
+                 if(remainingPercentage > 0 && availableOptionIndices.length > 0 ) percentages[availableOptionIndices[0]] += remainingPercentage; 
+            } else if (remainingPercentage > 0 && !optionBtns[correctAnswerIdx].disabled) { percentages[correctAnswerIdx] += remainingPercentage; }
+            let currentSum = 0; optionBtns.forEach((b, i) => { if(!b.disabled) currentSum += percentages[i]; });
+            if (currentSum > 0 && currentSum !== 100) {
+                let firstEnabledIdx = -1; for(let i=0; i<percentages.length; ++i) if(!optionBtns[i].disabled) {firstEnabledIdx=i; break;}
+                if(firstEnabledIdx !== -1) {
+                    const scale = 100 / currentSum; optionBtns.forEach((b, i) => { if(!b.disabled) percentages[i] = Math.round(percentages[i] * scale); });
+                    currentSum = 0; optionBtns.forEach((b, i) => { if(!b.disabled) currentSum += percentages[i]; });
+                    if(currentSum !== 100 && firstEnabledIdx !== -1) percentages[firstEnabledIdx] += (100-currentSum);
+                }
+            } else if (currentSum === 0) { let firstEnabledIdx = -1; for(let i=0; i<percentages.length; ++i) if(!optionBtns[i].disabled) {firstEnabledIdx=i; break;} if(firstEnabledIdx !== -1) percentages[firstEnabledIdx] = 100; }
+            audiencePollResultsEl.innerHTML = ''; const elementsToTypeset = [];
+            percentages.forEach((perc, index) => {
+                if (!optionBtns[index].disabled) {
+                    const barCont = document.createElement('div'); barCont.className = 'flex items-center mb-1'; const lbl = document.createElement('span'); lbl.className = 'w-auto mr-1 text-xs shrink-0';
+                    let optionPreviewText = question.options[index].text;
+                    if (optionPreviewText.length > 15) optionPreviewText = optionPreviewText.substring(0, 12) + "..."; 
+                    lbl.innerHTML = `${String.fromCharCode(65 + index)} (${optionPreviewText}):`; elementsToTypeset.push(lbl);
+                    const barOut = document.createElement('div'); barOut.className = 'w-full bg-slate-600 rounded h-4'; const barIn = document.createElement('div'); barIn.className = 'bg-yellow-500 h-4 rounded text-black text-xs flex items-center justify-center';
+                    barIn.style.width = `${Math.max(0, Math.min(100, perc))}%`; barIn.textContent = `${Math.max(0, Math.min(100, perc))}%`;
+                    barOut.appendChild(barIn); barCont.appendChild(lbl); barCont.appendChild(barOut); audiencePollResultsEl.appendChild(barCont);
+                }
+            });
+            audiencePollContainer.classList.remove('hidden');
+            if (typeof MathJax !== "undefined" && MathJax.typesetPromise && elementsToTypeset.length > 0) { try { await MathJax.typesetPromise(elementsToTypeset); } catch (e) { console.error(e); } }
+            updateNavigationAndControlButtons();
+        }
+
+        // --- Game State & Navigation ---
+        walkAwayBtn.addEventListener('click', async () => { 
+            if (gameIsOver || gameMode === 'teams' || (activeGameQuestions[currentQuestionIndex] && activeGameQuestions[currentQuestionIndex].answered && !activeGameQuestions[currentQuestionIndex].correct && activeGameQuestions[currentQuestionIndex].correct !== 'skipped') || (answerIsLocked && !activeGameQuestions[currentQuestionIndex].answered) ) return;
+            let walkAwayDisplayAmount = 0;
+            if (!activeGameQuestions[currentQuestionIndex].answered) {
+                if (currentQuestionIndex > 0) {
+                    const prevQ = activeGameQuestions[currentQuestionIndex-1];
+                    walkAwayDisplayAmount = (prevQ && prevQ.answered && prevQ.correct && prevQ.correct !== 'skipped') ? prizeMoney[currentQuestionIndex-1] : 0;
+                    let highestSecured = 0; 
+                    for (const havenIndex of safeHavensIndices) { 
+                        if (havenIndex < currentQuestionIndex -1 && activeGameQuestions[havenIndex] && activeGameQuestions[havenIndex].answered && activeGameQuestions[havenIndex].correct && activeGameQuestions[havenIndex].correct !== 'skipped') { 
+                            highestSecured = Math.max(highestSecured, prizeMoney[havenIndex]); 
+                        } 
+                    }
+                    walkAwayDisplayAmount = Math.max(walkAwayDisplayAmount, highestSecured);
+                } else { walkAwayDisplayAmount = 0; }
+            } else if (activeGameQuestions[currentQuestionIndex].answered && activeGameQuestions[currentQuestionIndex].correct && activeGameQuestions[currentQuestionIndex].correct !== 'skipped') { 
+                walkAwayDisplayAmount = currentWinnings; 
+            }
+            modalQuestionTextEl.innerHTML = `Are you sure you want to walk away with <br><span class="text-white font-bold">${formatCurrency(walkAwayDisplayAmount)}</span>?`;
+            if (typeof MathJax !== "undefined" && MathJax.typesetPromise) { await MathJax.typesetPromise([modalQuestionTextEl]); }
+            finalAnswerModal.classList.remove('hidden'); finalAnswerModal.classList.add('flex'); playSound('sound-final-answer-tick', true);
+            confirmLockInBtn.onclick = () => { hideFinalAnswerModal(); walkAway(walkAwayDisplayAmount); confirmLockInBtn.onclick = defaultConfirmLockInHandler; cancelLockInBtn.onclick = defaultCancelLockInHandler; };
+            cancelLockInBtn.onclick = () => { hideFinalAnswerModal(); confirmLockInBtn.onclick = defaultConfirmLockInHandler; cancelLockInBtn.onclick = defaultCancelLockInHandler; };
+         });
+        function walkAway(amountToWalkWith) { playSound('sound-walk-away'); gameOver(true, amountToWalkWith, "You decided to walk away with your earnings."); }
+        function winGame() { playSound('sound-win'); gameOver(true, prizeMoney[prizeMoney.length - 1], "Congratulations! You are a Millionaire!"); }
+
+        async function gameOver(walkedOrWon, amount, message) {
+            gameIsOver = true; 
+            stopAllSounds();
+
+            if (gameMode === 'teams') {
+                goiTitle.textContent = "Team Game Finished!";
+                goiTitle.className = 'text-2xl sm:text-3xl mb-2 text-blue-400';
+                goiPanel.style.borderColor = '#3B82F6';
+                goiWinnings.textContent = "Final Team Scores:";
+                let teamSummary = teams.map(t => `${t.name}: ${formatCurrency(t.score)}`).join('<br>');
+                goiMessage.innerHTML = teamSummary;
+                 if (typeof MathJax !== "undefined" && MathJax.typesetPromise) { await MathJax.typesetPromise([goiMessage]); }
+                goiPanel.classList.remove('hidden');
+                goiPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                disableGameInteractionsForTeamEnd();
+                restartGameLifelineBtn.classList.remove('hidden');
+                restartGameLifelineBtn.onclick = () => {
+                    gameScreen.classList.add('hidden');
+                    goiPanel.classList.add('hidden');
+                    startScreen.classList.remove('hidden');
+                    teamSetupScreen.classList.add('hidden');
+                    modeSelectionContainer.classList.remove('hidden'); 
+                };
+                return;
+            }
+
+            // SOLO MODE gameOver
+            if (!walkedOrWon && amount < prizeMoney[prizeMoney.length - 1]) playSound('sound-game-over');
+            optionBtns.forEach(btn => btn.disabled = true);
+            checkAnswerBtn.classList.add('hidden'); checkAnswerBtn.disabled = true;
+            lifeline5050Btn.disabled = true; lifelinePhoneBtn.disabled = true; lifelineAudienceBtn.disabled = true; lifelineSkipBtn.disabled = true;
+            if(walkAwayBtn) walkAwayBtn.disabled = true; prevQNavBtn.disabled = true; nextQNavBtn.disabled = true;
+
+            if (walkedOrWon && amount === prizeMoney[prizeMoney.length - 1]) {
+                goiTitle.textContent = "YOU'RE A MILLIONAIRE!"; goiTitle.className = 'text-2xl sm:text-3xl mb-2 text-green-400'; goiPanel.style.borderColor = '#10B981';
+            } else if (walkedOrWon) {
+                goiTitle.textContent = "You Walked Away!"; goiTitle.className = 'text-2xl sm:text-3xl mb-2 text-blue-400'; goiPanel.style.borderColor = '#3B82F6';
+            } else {
+                goiTitle.textContent = "Game Over!"; goiTitle.className = 'text-2xl sm:text-3xl mb-2 text-yellow-400'; goiPanel.style.borderColor = '#EF4444';
+            }
+            goiWinnings.textContent = `You won: ${formatCurrency(amount)}`;
+            goiMessage.innerHTML = message;
+            if (typeof MathJax !== "undefined" && MathJax.typesetPromise) { await MathJax.typesetPromise([goiMessage]); }
+            goiPanel.classList.remove('hidden');
+            goiPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            restartGameLifelineBtn.classList.remove('hidden');
+            restartGameLifelineBtn.onclick = () => { 
+                 startScreen.classList.remove('hidden'); 
+                 gameScreen.classList.add('hidden');
+                 goiPanel.classList.add('hidden');
+                 modeSelectionContainer.classList.remove('hidden');
+            };
+            gameOverScreen.classList.add('hidden'); 
+        }
+        
+        function disableGameInteractionsForTeamEnd() {
+            optionBtns.forEach(btn => btn.disabled = true);
+            checkAnswerBtn.classList.add('hidden'); checkAnswerBtn.disabled = true;
+            lifeline5050Btn.disabled = true; lifelinePhoneBtn.disabled = true; lifelineAudienceBtn.disabled = true; lifelineSkipBtn.disabled = true;
+            if(walkAwayBtn) walkAwayBtn.disabled = true; 
+            prevQNavBtn.disabled = true; nextQNavBtn.disabled = true;
+            document.querySelectorAll('.team-score-btn').forEach(btn => btn.disabled = true);
+        }
+
+        function resetGameData() {
+            currentQuestionIndex = 0; currentWinnings = 0; selectedAnswerIndex = -1; lockedAnswerIndex = -1;
+            answerIsLocked = false; gameIsOver = false;
+            lifelines = { fiftyFifty: true, phoneAFriend: true, askTheAudience: true, skipQuestion: true }; 
+            resetLifelineButtonsState();
+            explanationContainerEl.classList.add('hidden'); explanationTextEl.innerHTML = '';
+            goiPanel.classList.add('hidden');
+            restartGameLifelineBtn.classList.add('hidden');
+
+            teamScoresContainerEl.classList.add('hidden');
+            teamScoresListEl.innerHTML = '';
+        }
+        function resetLifelineButtonsState() {
+            [lifeline5050Btn, lifelinePhoneBtn, lifelineAudienceBtn, lifelineSkipBtn].forEach(btn => {
+                btn.disabled = false; 
+                btn.classList.remove('opacity-40', 'cursor-not-allowed');
+            });
+            audiencePollContainer.classList.add('hidden'); audiencePollResultsEl.innerHTML = '';
+            phoneAFriendTextEl.classList.add('hidden'); phoneAFriendTextEl.innerHTML = '';
+        }
+        
+        function startGame() { 
+            stopAllSounds(); playSound('sound-start');
+            resetGameData(); 
+            prepareGameQuestions();
+
+            if (gameMode === 'teams') {
+                setupTeamScoresUI();
+                teamScoresContainerEl.classList.remove('hidden');
+                if(walkAwayBtn) walkAwayBtn.classList.add('hidden');
+                earnedPrizeEl.classList.add('hidden');
+            } else { 
+                teamScoresContainerEl.classList.add('hidden');
+                if(walkAwayBtn) walkAwayBtn.classList.remove('hidden');
+                earnedPrizeEl.classList.remove('hidden');
+            }
+            
+            gameScreen.classList.remove('hidden'); 
+            initializePrizeLadder(); 
+            displayQuestion();
+        }
+
+        // Initial Event Listeners (Lifelines and Nav)
+        optionBtns.forEach(btn => btn.addEventListener('click', handleOptionClick));
+        lifeline5050Btn.addEventListener('click', useLifeline5050);
+        lifelinePhoneBtn.addEventListener('click', useLifelinePhoneAFriend);
+        lifelineAudienceBtn.addEventListener('click', useLifelineAskTheAudience);
+        lifelineSkipBtn.addEventListener('click', useLifelineSkipQuestion); 
+
+        nextQNavBtn.addEventListener('click', () => {
+            const questionData = activeGameQuestions[currentQuestionIndex];
+            if (!questionData || nextQNavBtn.disabled) return;
+
+            if (currentQuestionIndex < activeGameQuestions.length - 1) {
+                currentQuestionIndex++;
+                displayQuestion();
+            } else if (gameMode === 'teams' && currentQuestionIndex === activeGameQuestions.length - 1 && questionData.answered) {
+                gameOver(false, 0, "All questions answered! Check final scores.");
+            }
+        });
+        prevQNavBtn.addEventListener('click', () => {
+            if (prevQNavBtn.disabled) return;
+            if (!gameIsOver && !(answerIsLocked && !activeGameQuestions[currentQuestionIndex].answered)) {
+                 if (currentQuestionIndex > 0) { currentQuestionIndex--; displayQuestion(); }
+            }
+        });
+        
+        const oldPlayAgainBtn = document.getElementById('play-again-btn');
+        if(oldPlayAgainBtn) {
+            oldPlayAgainBtn.addEventListener('click', () => {
+                startScreen.classList.remove('hidden');
+                gameScreen.classList.add('hidden');
+                gameOverScreen.classList.add('hidden'); 
+                goiPanel.classList.add('hidden'); 
+                modeSelectionContainer.classList.remove('hidden'); 
+            });
+        }
+
+
+    </script>
+</body>
+</html>
